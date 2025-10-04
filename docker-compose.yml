@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: memorix_backend
+      POSTGRES_USER: memorix
+      POSTGRES_PASSWORD: hackmemorix
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memorix -d memorix_backend"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migration:
+    build: ./backend
+    environment:
+      - DATABASE_URI=postgresql://memorix:hackmemorix@db:5432/memorix_backend
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=memorix
+      - DB_PASSWORD=hackmemorix
+      - DB_NAME=memorix_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["bash", "scripts/init-migration.sh"]
+    volumes:
+      - ./backend:/app
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URI=postgresql+asyncpg://memorix:hackmemorix@db:5432/memorix_backend
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    volumes:
+      - ./backend:/app
+    command: ["python", "__main__.py"]
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+
+volumes:
+  postgres_data:
