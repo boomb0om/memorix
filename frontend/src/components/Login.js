@@ -34,9 +34,13 @@ function Login() {
   };
 
   return (
-    <div className="container">
-      <h2 style={{ textAlign: 'center', marginBottom: '30px' }}>Вход</h2>
-      <form onSubmit={handleSubmit}>
+    <div className="auth-page">
+      <div className="auth-container">
+        <div className="auth-header">
+          <h1 className="auth-logo">Memorix</h1>
+          <p className="auth-subtitle">Войдите в свой аккаунт</p>
+        </div>
+        <form onSubmit={handleSubmit} className="auth-form">
         <div className="form-group">
           <label htmlFor="email">Email:</label>
           <input
@@ -63,14 +67,17 @@ function Login() {
 
         {error && <div className="error">{error}</div>}
         
-        <button type="submit" className="btn" disabled={loading}>
+        <button type="submit" className="auth-btn" disabled={loading}>
           {loading ? 'Вход...' : 'Войти'}
         </button>
+        
+        <div className="auth-footer">
+          <Link to="/register" className="auth-link">
+            Нет аккаунта? <span>Зарегистрироваться</span>
+          </Link>
+        </div>
       </form>
-      
-      <Link to="/register" className="link">
-        Нет аккаунта? Зарегистрироваться
-      </Link>
+      </div>
     </div>
   );
 }

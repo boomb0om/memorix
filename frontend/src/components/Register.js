@@ -52,9 +52,13 @@ function Register() {
   };
 
   return (
-    <div className="container">
-      <h2 style={{ textAlign: 'center', marginBottom: '30px' }}>Регистрация</h2>
-      <form onSubmit={handleSubmit}>
+    <div className="auth-page">
+      <div className="auth-container">
+        <div className="auth-header">
+          <h1 className="auth-logo">Memorix</h1>
+          <p className="auth-subtitle">Создайте свой аккаунт</p>
+        </div>
+        <form onSubmit={handleSubmit} className="auth-form">
         <div className="form-group">
           <label htmlFor="email">Email:</label>
           <input
@@ -106,14 +110,17 @@ function Register() {
         {error && <div className="error">{error}</div>}
         {success && <div className="success">{success}</div>}
         
-        <button type="submit" className="btn" disabled={loading}>
+        <button type="submit" className="auth-btn" disabled={loading}>
           {loading ? 'Регистрация...' : 'Зарегистрироваться'}
         </button>
+        
+        <div className="auth-footer">
+          <Link to="/login" className="auth-link">
+            Уже есть аккаунт? <span>Войти</span>
+          </Link>
+        </div>
       </form>
-      
-      <Link to="/login" className="link">
-        Уже есть аккаунт? Войти
-      </Link>
+      </div>
     </div>
   );
 }

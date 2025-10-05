@@ -14,7 +14,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       // Проверяем, действителен ли токен
       api.get('/users/me')
         .then(response => {
@@ -22,7 +21,6 @@ export function AuthProvider({ children }) {
         })
         .catch(() => {
           localStorage.removeItem('token');
-          delete api.defaults.headers.common['Authorization'];
         })
         .finally(() => {
           setLoading(false);
@@ -38,7 +36,6 @@ export function AuthProvider({ children }) {
       const { access_token } = response.data;
       
       localStorage.setItem('token', access_token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       
       // Получаем информацию о пользователе
       const userResponse = await api.get('/users/me');
@@ -67,7 +64,6 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('token');
-    delete api.defaults.headers.common['Authorization'];
     setUser(null);
   };
 
