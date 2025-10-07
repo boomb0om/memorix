@@ -9,7 +9,7 @@ async def auth_middleware(request: Request, call_next):
     """Middleware для автоматической проверки токенов"""
     
     # Пропускаем публичные endpoints
-    public_paths = ["/users/login", "/users/register", "/docs", "/openapi.json", "/users/refresh"]
+    public_paths = ["/", "/api/users/login", "/api/users/register", "/api/docs", "/api/openapi.json", "/api/users/refresh"]
     if request.url.path in public_paths:
         response = await call_next(request)
         return response
@@ -46,6 +46,14 @@ async def auth_middleware(request: Request, call_next):
         
         # Добавляем информацию о пользователе в request state
         request.state.user_email = payload.get("sub")
+        request.state.user_id = payload.get("user_id")
+        
+        # Проверяем наличие user_id
+        if not request.state.user_id:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Invalid token: missing user_id"}
+            )
         
     except JWTError:
         return JSONResponse(

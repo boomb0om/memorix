@@ -98,7 +98,7 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession):
     # Создаем новый access токен
     access_token_expires = timedelta(minutes=jwt_settings.access_token_expire_minutes)
     new_access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+        data={"sub": user.email, "user_id": user.id}, expires_delta=access_token_expires
     )
     
     return new_access_token

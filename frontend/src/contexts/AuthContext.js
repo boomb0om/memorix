@@ -15,12 +15,13 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('token');
     if (token) {
       // Проверяем, действителен ли токен
-      api.get('/users/me')
+      api.get('/api/users/me')
         .then(response => {
           setUser(response.data);
         })
         .catch(() => {
           localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
         })
         .finally(() => {
           setLoading(false);
@@ -32,13 +33,14 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      const response = await api.post('/users/login', { email, password });
-      const { access_token } = response.data;
+      const response = await api.post('/api/users/login', { email, password });
+      const { access_token, refresh_token } = response.data;
       
       localStorage.setItem('token', access_token);
+      localStorage.setItem('refreshToken', refresh_token);
       
       // Получаем информацию о пользователе
-      const userResponse = await api.get('/users/me');
+      const userResponse = await api.get('/api/users/me');
       setUser(userResponse.data);
       
       return { success: true };
@@ -52,7 +54,7 @@ export function AuthProvider({ children }) {
 
   const register = async (email, username, password) => {
     try {
-      await api.post('/users/register', { email, username, password });
+      await api.post('/api/users/register', { email, username, password });
       return { success: true };
     } catch (error) {
       return { 
@@ -64,6 +66,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 

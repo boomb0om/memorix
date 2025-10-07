@@ -1,6 +1,6 @@
 # Migrations
 
-# Создать миграцию
+## Создать миграцию
 
 ```bash
 docker compose up db

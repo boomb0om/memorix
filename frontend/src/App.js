@@ -1,9 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SidebarProvider } from './contexts/SidebarContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import Profile from './components/Profile';
+import Notes from './components/Notes';
 import Navbar from './components/Navbar';
 
 function AppContent() {
@@ -16,23 +19,48 @@ function AppContent() {
   return (
     <Router>
       <div className="App">
-        {user && <Navbar />}
         <Routes>
           <Route 
             path="/login" 
-            element={user ? <Navigate to="/dashboard" /> : <Login />} 
+            element={user ? <Navigate to="/chat" /> : <Login />} 
           />
           <Route 
             path="/register" 
-            element={user ? <Navigate to="/dashboard" /> : <Register />} 
+            element={user ? <Navigate to="/chat" /> : <Register />} 
+          />
+          <Route 
+            path="/chat" 
+            element={user ? (
+              <SidebarProvider>
+                <Navbar />
+                <Dashboard />
+              </SidebarProvider>
+            ) : <Navigate to="/login" />} 
           />
           <Route 
             path="/dashboard" 
-            element={user ? <Dashboard /> : <Navigate to="/login" />} 
+            element={<Navigate to="/chat" />} 
+          />
+          <Route 
+            path="/profile" 
+            element={user ? (
+              <SidebarProvider>
+                <Profile />
+              </SidebarProvider>
+            ) : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/notes" 
+            element={user ? (
+              <SidebarProvider>
+                <Navbar />
+                <Notes />
+              </SidebarProvider>
+            ) : <Navigate to="/login" />} 
           />
           <Route 
             path="/" 
-            element={<Navigate to={user ? "/dashboard" : "/login"} />} 
+            element={<Navigate to={user ? "/chat" : "/login"} />} 
           />
         </Routes>
       </div>
