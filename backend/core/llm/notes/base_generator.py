@@ -1,12 +1,9 @@
 from abc import ABC, abstractmethod
+from .schema import NotesGenerateContext, Note
 
 
-class BaseLLMGenerator(ABC):
+class BaseNotesGenerator(ABC):
 
     @abstractmethod
     async def generate_notes(self, user_notes: str) -> str:
-        pass
-
-    @abstractmethod
-    async def generate_test(self, notes: str) -> str:
         pass
