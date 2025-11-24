@@ -7,6 +7,7 @@ from courses.schema import (
     CourseResponse,
     CourseWithLessons,
     LessonListItem,
+    GenerateLessonsRequest,
 )
 import courses.service.courses as course_service
 
@@ -109,4 +110,28 @@ async def delete_course(
     """Удалить курс"""
     user_id = request.state.user_id
     return await course_service.delete_course(db, course_id, user_id)
+
+
+@router.post("/{course_id}/generate-lessons")
+async def generate_lessons(
+    course_id: int,
+    request: Request,
+    request_data: GenerateLessonsRequest | None = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Сгенерировать план уроков для курса"""
+    user_id = request.state.user_id
+    if request_data is None:
+        request_data = GenerateLessonsRequest()
+    
+    return await course_service.generate_lessons_plan(
+        db,
+        course_id,
+        user_id,
+        goal=request_data.goal,
+        start_knowledge=request_data.start_knowledge,
+        target_knowledge=request_data.target_knowledge,
+        target_audience=request_data.target_audience,
+        topics=request_data.topics
+    )
 

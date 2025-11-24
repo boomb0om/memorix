@@ -166,6 +166,9 @@ export const coursesApi = {
   
   // Удалить курс
   delete: (id) => api.delete(`/api/courses/${id}`),
+  
+  // Сгенерировать план уроков для курса
+  generateLessons: (id, data) => api.post(`/api/courses/${id}/generate-lessons`, data || {}),
 };
 
 // API для работы с уроками

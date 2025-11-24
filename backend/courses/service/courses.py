@@ -2,8 +2,10 @@ import logging
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from courses.schema import CourseCreate, CourseUpdate
-from courses.dao import CourseDAO
+from courses.dao import CourseDAO, LessonDAO
 from courses.service.access_control import ensure_course_access
+from core.llm.courses.openai_generator import get_mistral_course_generator
+from core.llm.courses.schema import CourseSummaryGenerateContext
 
 logger = logging.getLogger(__name__)
 
@@ -93,5 +95,64 @@ async def delete_course(db: AsyncSession, course_id: int, user_id: int):
     return {
         "message": "Course deleted successfully",
         "lessons_deleted": lessons_count
+    }
+
+
+async def generate_lessons_plan(
+    db: AsyncSession,
+    course_id: int,
+    user_id: int,
+    goal: str | None = None,
+    start_knowledge: str | None = None,
+    target_knowledge: str | None = None,
+    target_audience: str | None = None,
+    topics: list[str] | None = None
+):
+    # Проверка, что пользователь - автор курса
+    course = await ensure_course_access(db, course_id, user_id, require_author=True)
+    
+    # Удаляем существующие уроки, если они есть
+    existing_lessons = await LessonDAO.get_all_by_course(db, course_id)
+    if existing_lessons:
+        logger.info(f"Deleting {len(existing_lessons)} existing lessons before generating new plan")
+        for lesson in existing_lessons:
+            await LessonDAO.delete(db, lesson.id)
+        await db.flush()
+    
+    # Подготавливаем контекст для генерации
+    # Используем информацию из курса, если параметры не переданы
+    context = CourseSummaryGenerateContext(
+        goal=goal or f"Изучить курс: {course.name}",
+        start_knowledge=start_knowledge or "Базовые знания",
+        target_knowledge=target_knowledge or course.description or "Успешное завершение курса",
+        target_audience=target_audience or "Студенты",
+        topics=topics
+    )
+    
+    # Генерируем план курса
+    logger.info(f"User {user_id} generating lessons plan for course {course_id}")
+    generator = await get_mistral_course_generator()
+    course_summary = await generator.generate_plan(context)
+    
+    # Создаем уроки на основе тем из плана
+    created_lessons = []
+    for idx, topic in enumerate(course_summary.topics):
+        lesson = await LessonDAO.create(
+            db,
+            course_id=course_id,
+            position=idx,
+            name=topic.title,
+            description=topic.info,
+            content={"blocks": []}  # Пустые блоки, только план
+        )
+        created_lessons.append(lesson)
+    
+    await db.commit()
+    logger.info(f"Generated {len(created_lessons)} lessons for course {course_id}")
+    
+    return {
+        "message": f"Generated {len(created_lessons)} lessons",
+        "lessons_count": len(created_lessons),
+        "lessons": created_lessons
     }
 

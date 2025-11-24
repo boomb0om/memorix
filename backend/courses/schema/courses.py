@@ -36,3 +36,12 @@ class CourseWithLessons(CourseResponse):
 class CourseDetailResponse(CourseResponse):
     """Схема для детального просмотра курса с полными уроками"""
     lessons: list[LessonResponse] = Field(default_factory=list)
+
+
+class GenerateLessonsRequest(BaseModel):
+    """Схема для запроса генерации уроков"""
+    goal: str | None = Field(default=None, description="Цель курса")
+    start_knowledge: str | None = Field(default=None, description="Начальные знания")
+    target_knowledge: str | None = Field(default=None, description="Конечные знания")
+    target_audience: str | None = Field(default=None, description="Целевая аудитория")
+    topics: list[str] | None = Field(default=None, description="Темы, которые нужно включить")

@@ -1,7 +1,4 @@
-from typing import Literal
 from pydantic import BaseModel, Field
-
-from backend.core.llm.tests import BaseQuestion
 
 
 class CourseSummaryGenerateContext(BaseModel):

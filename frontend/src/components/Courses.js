@@ -20,6 +20,15 @@ function Courses() {
   const [error, setError] = useState(null);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [isCreatingLesson, setIsCreatingLesson] = useState(false);
+  const [isGeneratingLessons, setIsGeneratingLessons] = useState(false);
+  const [showGenerateLessonsModal, setShowGenerateLessonsModal] = useState(false);
+  const [generateFormData, setGenerateFormData] = useState({
+    goal: '',
+    start_knowledge: '',
+    target_knowledge: '',
+    target_audience: '',
+    topics: ''
+  });
   const { isSidebarOpen } = useSidebar();
 
   useEffect(() => {
@@ -136,6 +145,98 @@ function Courses() {
     } catch (err) {
       setError('Не удалось сохранить курс');
       console.error('Error saving course:', err);
+    }
+  };
+
+  const handleOpenGenerateLessonsModal = () => {
+    // Проверяем, что курс сохранен
+    if (!selectedCourse) {
+      setError('Сначала создайте и сохраните курс');
+      return;
+    }
+
+    // Если курс редактируется, проверяем, что изменения сохранены
+    if (isEditingCourse) {
+      setError('Пожалуйста, сначала сохраните изменения в курсе');
+      return;
+    }
+
+    // Проверяем, что название и описание заполнены
+    const courseName = selectedCourse.name;
+    const courseDescription = selectedCourse.description;
+
+    if (!courseName || !courseName.trim()) {
+      setError('Пожалуйста, заполните название курса перед генерацией уроков');
+      return;
+    }
+
+    if (!courseDescription || !courseDescription.trim()) {
+      setError('Пожалуйста, заполните описание курса перед генерацией уроков');
+      return;
+    }
+
+    // Проверяем, есть ли уже уроки
+    if (lessons.length > 0) {
+      if (!window.confirm('В курсе уже есть уроки. Сгенерировать новый план? Существующие уроки будут удалены.')) {
+        return;
+      }
+    }
+
+    // Сбрасываем форму
+    setGenerateFormData({
+      goal: '',
+      start_knowledge: '',
+      target_knowledge: '',
+      target_audience: '',
+      topics: ''
+    });
+    setShowGenerateLessonsModal(true);
+    setError(null);
+  };
+
+  const handleGenerateLessons = async () => {
+    if (!selectedCourse) {
+      setError('Сначала сохраните курс');
+      return;
+    }
+
+    try {
+      setIsGeneratingLessons(true);
+      setError(null);
+
+      // Подготавливаем данные для запроса
+      const requestData = {
+        goal: generateFormData.goal.trim() || null,
+        start_knowledge: generateFormData.start_knowledge.trim() || null,
+        target_knowledge: generateFormData.target_knowledge.trim() || null,
+        target_audience: generateFormData.target_audience.trim() || null,
+        topics: generateFormData.topics.trim() 
+          ? generateFormData.topics.split(',').map(t => t.trim()).filter(t => t.length > 0)
+          : null
+      };
+
+      const response = await coursesApi.generateLessons(selectedCourse.id, requestData);
+      
+      // Обновляем список уроков
+      await loadLessons(selectedCourse.id);
+      
+      // Закрываем модальное окно
+      setShowGenerateLessonsModal(false);
+      setGenerateFormData({
+        goal: '',
+        start_knowledge: '',
+        target_knowledge: '',
+        target_audience: '',
+        topics: ''
+      });
+      
+      alert(`Успешно сгенерировано ${response.data.lessons_count} уроков!`);
+      setIsGeneratingLessons(false);
+    } catch (err) {
+      setIsGeneratingLessons(false);
+      const errorMessage = err.response?.data?.detail || 'Не удалось сгенерировать уроки';
+      setError(errorMessage);
+      console.error('Error generating lessons:', err);
     }
   };
 
@@ -439,6 +540,21 @@ function Courses() {
                     rows="10"
                   />
                 </div>
+                {!isCreatingCourse && selectedCourse && (
+                  <div className="courses-form-group">
+                    <button 
+                      onClick={handleOpenGenerateLessonsModal} 
+                      className="courses-btn courses-btn-secondary"
+                      disabled={isGeneratingLessons}
+                      style={{ width: '100%', marginTop: '16px' }}
+                    >
+                      {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать уроки'}
+                    </button>
+                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '8px' }}>
+                      Создаст план уроков на основе названия и описания курса
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -990,16 +1106,35 @@ function Courses() {
             <div className="lessons-cards-view">
               <div className="lessons-cards-header">
                 <h2>Уроки курса "{selectedCourse.name}"</h2>
-                <button onClick={handleCreateNewLesson} className="courses-btn courses-btn-primary">
-                  + Создать урок
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={handleOpenGenerateLessonsModal} 
+                    className="courses-btn courses-btn-secondary"
+                    disabled={isGeneratingLessons}
+                  >
+                    {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать уроки'}
+                  </button>
+                  <button onClick={handleCreateNewLesson} className="courses-btn courses-btn-primary">
+                    + Создать урок
+                  </button>
+                </div>
               </div>
               {lessons.length === 0 ? (
                 <div className="lessons-cards-empty">
                   <p>В этом курсе пока нет уроков</p>
-                  <button onClick={handleCreateNewLesson} className="courses-create-btn-large">
-                    Создать первый урок
-                  </button>
+                  <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', alignItems: 'center' }}>
+                    <button 
+                      onClick={handleOpenGenerateLessonsModal} 
+                      className="courses-create-btn-large"
+                      disabled={isGeneratingLessons}
+                    >
+                      {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать план уроков'}
+                    </button>
+                    <span style={{ color: '#666', fontSize: '0.9em' }}>или</span>
+                    <button onClick={handleCreateNewLesson} className="courses-create-btn-large">
+                      Создать первый урок вручную
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="lessons-cards-grid">
@@ -1029,6 +1164,138 @@ function Courses() {
           )}
         </div>
       </div>
+
+      {/* Модальное окно для генерации уроков */}
+      {showGenerateLessonsModal && (
+        <div 
+          className="modal-overlay" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isGeneratingLessons) {
+              setShowGenerateLessonsModal(false);
+            }
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            className="modal-content"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: '20px' }}>
+              <h2 style={{ margin: '0 0 8px 0' }}>Генерация плана уроков</h2>
+              <p style={{ color: '#666', fontSize: '0.9em', margin: 0 }}>
+                Заполните опциональные поля для более точной генерации плана
+              </p>
+            </div>
+
+            <div className="courses-form-group">
+              <label htmlFor="generate-goal">Цель курса (опционально)</label>
+              <input
+                id="generate-goal"
+                type="text"
+                value={generateFormData.goal}
+                onChange={(e) => setGenerateFormData({ ...generateFormData, goal: e.target.value })}
+                placeholder="Например: Научиться программировать на Python"
+                className="courses-input"
+                disabled={isGeneratingLessons}
+              />
+            </div>
+
+            <div className="courses-form-group">
+              <label htmlFor="generate-start-knowledge">Начальные знания (опционально)</label>
+              <input
+                id="generate-start-knowledge"
+                type="text"
+                value={generateFormData.start_knowledge}
+                onChange={(e) => setGenerateFormData({ ...generateFormData, start_knowledge: e.target.value })}
+                placeholder="Например: Базовые знания о программировании"
+                className="courses-input"
+                disabled={isGeneratingLessons}
+              />
+            </div>
+
+            <div className="courses-form-group">
+              <label htmlFor="generate-target-knowledge">Конечные знания (опционально)</label>
+              <input
+                id="generate-target-knowledge"
+                type="text"
+                value={generateFormData.target_knowledge}
+                onChange={(e) => setGenerateFormData({ ...generateFormData, target_knowledge: e.target.value })}
+                placeholder="Например: Профессиональные навыки в Python"
+                className="courses-input"
+                disabled={isGeneratingLessons}
+              />
+            </div>
+
+            <div className="courses-form-group">
+              <label htmlFor="generate-target-audience">Целевая аудитория (опционально)</label>
+              <input
+                id="generate-target-audience"
+                type="text"
+                value={generateFormData.target_audience}
+                onChange={(e) => setGenerateFormData({ ...generateFormData, target_audience: e.target.value })}
+                placeholder="Например: Начинающие программисты"
+                className="courses-input"
+                disabled={isGeneratingLessons}
+              />
+            </div>
+
+            <div className="courses-form-group">
+              <label htmlFor="generate-topics">Темы для включения (опционально, через запятую)</label>
+              <input
+                id="generate-topics"
+                type="text"
+                value={generateFormData.topics}
+                onChange={(e) => setGenerateFormData({ ...generateFormData, topics: e.target.value })}
+                placeholder="Например: декораторы, генераторы, асинхронное программирование"
+                className="courses-input"
+                disabled={isGeneratingLessons}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <button
+                onClick={() => {
+                  if (!isGeneratingLessons) {
+                    setShowGenerateLessonsModal(false);
+                  }
+                }}
+                className="courses-btn courses-btn-secondary"
+                disabled={isGeneratingLessons}
+              >
+                Отменить
+              </button>
+              <button
+                onClick={handleGenerateLessons}
+                className="courses-btn courses-btn-primary"
+                disabled={isGeneratingLessons}
+              >
+                {isGeneratingLessons ? 'Генерация...' : 'Сгенерировать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

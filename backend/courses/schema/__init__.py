@@ -20,6 +20,7 @@ from .courses import (
     CourseResponse,
     CourseWithLessons,
     CourseDetailResponse,
+    GenerateLessonsRequest,
 )
 
 __all__ = [
