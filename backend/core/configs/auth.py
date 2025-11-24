@@ -12,7 +12,7 @@ class JWTSettings(BaseSettings):
         env="ALGORITHM"
     )
     access_token_expire_minutes: int = Field(
-        default=30,
+        default=15,
         env="ACCESS_TOKEN_EXPIRE_MINUTES"
     )
     refresh_token_expire_days: int = Field(

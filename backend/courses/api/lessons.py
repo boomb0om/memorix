@@ -29,14 +29,18 @@ async def create_lesson(
     user_id = request.state.user_id
     created_lesson = await lesson_service.create_lesson(db, lesson, user_id)
     
-    # Преобразуем content в blocks для ответа
+    # Преобразуем content в blocks для ответа с валидацией
+    blocks = created_lesson.content.get("blocks", [])
+    if not isinstance(blocks, list):
+        blocks = []
+    
     return LessonResponse(
         id=created_lesson.id,
         course_id=created_lesson.course_id,
         position=created_lesson.position,
         name=created_lesson.name,
         description=created_lesson.description,
-        blocks=created_lesson.content.get("blocks", []),
+        blocks=blocks,
         created_at=created_lesson.created_at,
         updated_at=created_lesson.updated_at
     )
@@ -75,14 +79,18 @@ async def get_lesson(
     user_id = request.state.user_id
     lesson = await lesson_service.get_lesson(db, lesson_id, user_id)
     
-    # Преобразуем content в blocks для ответа
+    # Преобразуем content в blocks для ответа с валидацией
+    blocks = lesson.content.get("blocks", [])
+    if not isinstance(blocks, list):
+        blocks = []
+    
     return LessonResponse(
         id=lesson.id,
         course_id=lesson.course_id,
         position=lesson.position,
         name=lesson.name,
         description=lesson.description,
-        blocks=lesson.content.get("blocks", []),
+        blocks=blocks,
         created_at=lesson.created_at,
         updated_at=lesson.updated_at
     )
@@ -99,14 +107,18 @@ async def update_lesson(
     user_id = request.state.user_id
     updated_lesson = await lesson_service.update_lesson(db, lesson_id, lesson_update, user_id)
     
-    # Преобразуем content в blocks для ответа
+    # Преобразуем content в blocks для ответа с валидацией
+    blocks = updated_lesson.content.get("blocks", [])
+    if not isinstance(blocks, list):
+        blocks = []
+    
     return LessonResponse(
         id=updated_lesson.id,
         course_id=updated_lesson.course_id,
         position=updated_lesson.position,
         name=updated_lesson.name,
         description=updated_lesson.description,
-        blocks=updated_lesson.content.get("blocks", []),
+        blocks=blocks,
         created_at=updated_lesson.created_at,
         updated_at=updated_lesson.updated_at
     )
@@ -139,14 +151,18 @@ async def reorder_lesson(
         user_id
     )
     
-    # Преобразуем content в blocks для ответа
+    # Преобразуем content в blocks для ответа с валидацией
+    blocks = updated_lesson.content.get("blocks", [])
+    if not isinstance(blocks, list):
+        blocks = []
+    
     return LessonResponse(
         id=updated_lesson.id,
         course_id=updated_lesson.course_id,
         position=updated_lesson.position,
         name=updated_lesson.name,
         description=updated_lesson.description,
-        blocks=updated_lesson.content.get("blocks", []),
+        blocks=blocks,
         created_at=updated_lesson.created_at,
         updated_at=updated_lesson.updated_at
     )

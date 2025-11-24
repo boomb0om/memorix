@@ -1,41 +1,41 @@
+import logging
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from courses.schema import CourseCreate, CourseUpdate
 from courses.dao import CourseDAO
+from courses.service.access_control import ensure_course_access
+
+logger = logging.getLogger(__name__)
 
 
 async def create_course(db: AsyncSession, course: CourseCreate, author_id: int):
     """Создать курс"""
-    return await CourseDAO.create(
+    logger.info(f"User {author_id} creating course: {course.name}")
+    created_course = await CourseDAO.create(
         db,
         name=course.name,
         description=course.description,
         author_id=author_id
     )
+    await db.commit()
+    logger.info(f"Course {created_course.id} created successfully by user {author_id}")
+    return created_course
 
 
 async def get_course(db: AsyncSession, course_id: int, user_id: int):
     """Получить курс по ID"""
-    course = await CourseDAO.get_by_id(db, course_id)
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    
-    # Проверка доступа (автор или есть в ACL)
-    if not await _check_course_access(db, course_id, user_id):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    return course
+    return await ensure_course_access(db, course_id, user_id, require_author=False)
 
 
 async def get_course_with_lessons(db: AsyncSession, course_id: int, user_id: int):
     """Получить курс с уроками"""
+    # Проверяем доступ
+    await ensure_course_access(db, course_id, user_id, require_author=False)
+    
+    # Получаем курс с уроками
     course = await CourseDAO.get_by_id_with_lessons(db, course_id)
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
-    
-    # Проверка доступа
-    if not await _check_course_access(db, course_id, user_id):
-        raise HTTPException(status_code=403, detail="Access denied")
     
     return course
 
@@ -58,8 +58,7 @@ async def update_course(
 ):
     """Обновить курс"""
     # Проверка, что пользователь - автор курса
-    if not await CourseDAO.check_author(db, course_id, user_id):
-        raise HTTPException(status_code=403, detail="Only course author can update it")
+    await ensure_course_access(db, course_id, user_id, require_author=True)
     
     # Собираем только те поля, которые были переданы
     update_data = course_update.model_dump(exclude_unset=True)
@@ -67,38 +66,32 @@ async def update_course(
         # Если ничего не передано, просто возвращаем курс
         return await CourseDAO.get_by_id(db, course_id)
     
+    logger.info(f"User {user_id} updating course {course_id} with fields: {list(update_data.keys())}")
     updated_course = await CourseDAO.update(db, course_id, **update_data)
     if not updated_course:
         raise HTTPException(status_code=404, detail="Course not found")
     
+    await db.commit()
+    logger.info(f"Course {course_id} updated successfully by user {user_id}")
     return updated_course
 
 
 async def delete_course(db: AsyncSession, course_id: int, user_id: int):
     """Удалить курс"""
     # Проверка, что пользователь - автор курса
-    if not await CourseDAO.check_author(db, course_id, user_id):
-        raise HTTPException(status_code=403, detail="Only course author can delete it")
+    course = await ensure_course_access(db, course_id, user_id, require_author=True)
     
-    course = await CourseDAO.get_by_id(db, course_id)
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+    # Загружаем курс с уроками для подсчета
+    course_with_lessons = await CourseDAO.get_by_id_with_lessons(db, course_id)
+    lessons_count = len(course_with_lessons.lessons) if course_with_lessons and course_with_lessons.lessons else 0
     
+    logger.warning(f"User {user_id} deleting course {course_id} with {lessons_count} lessons")
     await CourseDAO.delete(db, course_id)
-    return {"message": "Course deleted successfully"}
-
-
-async def _check_course_access(db: AsyncSession, course_id: int, user_id: int) -> bool:
-    """Проверить доступ пользователя к курсу"""
-    course = await CourseDAO.get_by_id(db, course_id)
-    if not course:
-        return False
+    await db.commit()
+    logger.info(f"Course {course_id} deleted successfully by user {user_id}")
     
-    # Автор имеет доступ
-    if course.author_id == user_id:
-        return True
-    
-    # TODO: Проверить ACL для других пользователей
-    # Сейчас доступ только для автора
-    return False
+    return {
+        "message": "Course deleted successfully",
+        "lessons_deleted": lessons_count
+    }
 

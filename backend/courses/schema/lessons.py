@@ -5,17 +5,17 @@ from .blocks import LessonBlock
 
 class LessonCreate(BaseModel):
     """Схема для создания урока"""
-    course_id: int = Field(description="ID курса")
-    position: int = Field(description="Позиция урока в курсе", ge=0)
-    name: str = Field(description="Название урока", min_length=1)
-    description: str | None = Field(default=None, description="Описание урока")
-    blocks: list[LessonBlock] = Field(description="Блоки урока")
+    course_id: int = Field(description="ID курса", gt=0)
+    position: int | None = Field(default=None, description="Позиция урока в курсе (None для автоматического назначения)", ge=-1)
+    name: str = Field(description="Название урока", min_length=1, max_length=200)
+    description: str | None = Field(default=None, description="Описание урока", max_length=1000)
+    blocks: list[LessonBlock] = Field(description="Блоки урока", default_factory=list)
 
 
 class LessonUpdate(BaseModel):
     """Схема для обновления урока"""
-    name: str | None = Field(default=None, description="Название урока")
-    description: str | None = Field(default=None, description="Описание урока")
+    name: str | None = Field(default=None, description="Название урока", min_length=1, max_length=200)
+    description: str | None = Field(default=None, description="Описание урока", max_length=1000)
     position: int | None = Field(default=None, description="Позиция урока", ge=0)
     blocks: list[LessonBlock] | None = Field(default=None, description="Блоки урока")
 

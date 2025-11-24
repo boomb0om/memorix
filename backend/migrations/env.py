@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.db import Base
 from users.dao.models import *
 from notes.dao.models import *
+from courses.dao.models import *
 from core.configs.db import db_settings
 
 # this is the Alembic Config object, which provides

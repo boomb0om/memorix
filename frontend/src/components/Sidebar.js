@@ -13,8 +13,7 @@ function Sidebar() {
     { icon: '💬', label: 'Чат', path: '/chat' },
     { icon: '📄', label: 'Документы', path: '/documents' },
     { icon: '📝', label: 'Конспекты', path: '/notes' },
-    { icon: '📚', label: 'Тесты', path: '/tests' },
-    { icon: '🎓', label: 'Занятия', path: '/classes' },
+    { icon: '📚', label: 'Курсы', path: '/courses' },
   ];
 
   const handleMenuClick = (path) => {

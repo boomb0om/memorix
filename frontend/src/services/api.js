@@ -45,7 +45,8 @@ api.interceptors.response.use(
     // Проверяем, что это 401 ошибка и запрос еще не повторялся
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Если это запрос на refresh, не пытаемся обновить токен
-      if (originalRequest.url === '/api/users/refresh') {
+      const requestUrl = originalRequest.url || '';
+      if (requestUrl.includes('/api/users/refresh') || requestUrl.endsWith('/refresh')) {
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         window.location.href = '/login';
@@ -87,6 +88,11 @@ api.interceptors.response.use(
         );
 
         const { access_token } = response.data;
+        
+        if (!access_token) {
+          throw new Error('No access token in refresh response');
+        }
+        
         localStorage.setItem('token', access_token);
         
         // Обновляем заголовок для оригинального запроса
@@ -136,6 +142,48 @@ export const notesApi = {
   
   // Удалить конспект
   delete: (id) => api.delete(`/api/notes/${id}`),
+};
+
+// API для работы с курсами
+export const coursesApi = {
+  // Получить все доступные курсы пользователя
+  getAll: () => api.get('/api/courses'),
+  
+  // Получить курсы, созданные пользователем
+  getMy: () => api.get('/api/courses/my'),
+  
+  // Получить курс по ID
+  getById: (id) => api.get(`/api/courses/${id}`),
+  
+  // Получить курс с уроками
+  getWithLessons: (id) => api.get(`/api/courses/${id}/with-lessons`),
+  
+  // Создать новый курс
+  create: (courseData) => api.post('/api/courses', courseData),
+  
+  // Обновить курс
+  update: (id, courseData) => api.patch(`/api/courses/${id}`, courseData),
+  
+  // Удалить курс
+  delete: (id) => api.delete(`/api/courses/${id}`),
+};
+
+// API для работы с уроками
+export const lessonsApi = {
+  // Получить все уроки курса
+  getByCourse: (courseId) => api.get(`/api/lessons/course/${courseId}`),
+  
+  // Получить урок по ID
+  getById: (id) => api.get(`/api/lessons/${id}`),
+  
+  // Создать новый урок
+  create: (lessonData) => api.post('/api/lessons', lessonData),
+  
+  // Обновить урок
+  update: (id, lessonData) => api.patch(`/api/lessons/${id}`, lessonData),
+  
+  // Удалить урок
+  delete: (id) => api.delete(`/api/lessons/${id}`),
 };
 
 export default api;

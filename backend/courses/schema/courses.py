@@ -5,14 +5,14 @@ from .lessons import LessonListItem, LessonResponse
 
 class CourseCreate(BaseModel):
     """Схема для создания курса"""
-    name: str = Field(description="Название курса", min_length=1)
-    description: str = Field(description="Описание курса")
+    name: str = Field(description="Название курса", min_length=1, max_length=200)
+    description: str = Field(description="Описание курса", max_length=5000)
 
 
 class CourseUpdate(BaseModel):
     """Схема для обновления курса"""
-    name: str | None = Field(default=None, description="Название курса")
-    description: str | None = Field(default=None, description="Описание курса")
+    name: str | None = Field(default=None, description="Название курса", min_length=1, max_length=200)
+    description: str | None = Field(default=None, description="Описание курса", max_length=5000)
 
 
 class CourseResponse(BaseModel):

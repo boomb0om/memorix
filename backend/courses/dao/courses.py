@@ -79,7 +79,7 @@ class CourseDAO:
             author_id=author_id
         )
         session.add(db_course)
-        await session.commit()
+        await session.flush()
         await session.refresh(db_course)
         return db_course
 
@@ -93,7 +93,7 @@ class CourseDAO:
         """Обновить курс"""
         stmt = update(Course).where(Course.id == course_id).values(**kwargs)
         await session.execute(stmt)
-        await session.commit()
+        await session.flush()
         return await cls.get_by_id(session, course_id)
 
     @classmethod
@@ -101,7 +101,7 @@ class CourseDAO:
         """Удалить курс"""
         stmt = delete(Course).where(Course.id == course_id)
         await session.execute(stmt)
-        await session.commit()
+        await session.flush()
         return True
 
     @classmethod

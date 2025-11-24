@@ -61,7 +61,7 @@ class LessonDAO:
             content=content
         )
         session.add(db_lesson)
-        await session.commit()
+        await session.flush()
         await session.refresh(db_lesson)
         return db_lesson
 
@@ -75,8 +75,19 @@ class LessonDAO:
         """Обновить урок"""
         stmt = update(Lesson).where(Lesson.id == lesson_id).values(**kwargs)
         await session.execute(stmt)
-        await session.commit()
+        await session.flush()
         return await cls.get_by_id(session, lesson_id)
+
+    @classmethod
+    async def update_in_transaction(
+        cls,
+        session: AsyncSession,
+        lesson_id: int,
+        **kwargs
+    ) -> None:
+        """Обновить урок в рамках существующей транзакции"""
+        stmt = update(Lesson).where(Lesson.id == lesson_id).values(**kwargs)
+        await session.execute(stmt)
 
     @classmethod
     async def update_content(
@@ -93,7 +104,7 @@ class LessonDAO:
         """Удалить урок"""
         stmt = delete(Lesson).where(Lesson.id == lesson_id)
         await session.execute(stmt)
-        await session.commit()
+        await session.flush()
         return True
 
     @classmethod
@@ -103,7 +114,7 @@ class LessonDAO:
         lesson_id: int,
         new_position: int
     ) -> Lesson | None:
-        """Изменить позицию урока"""
+        """Изменить позицию урока (устаревший метод, используйте reorder_lesson в сервисе)"""
         return await cls.update(session, lesson_id, position=new_position)
 
     @classmethod

@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from users.dao import UserDAO
 from users.schema import UserCreate, UserLogin
 from core.auth.password import hash_password, verify_password, _FAKE_HASH
+from core.auth.tokens import refresh_access_token as refresh_token
 from fastapi import HTTPException, status
 
 
@@ -66,3 +67,7 @@ async def update_user(db: AsyncSession, user_id: int, **kwargs):
 
 async def delete_user(db: AsyncSession, user_id: int):
     return await UserDAO.delete(db, user_id)
+
+
+async def refresh_access_token(db: AsyncSession, refresh_token_str: str):
+    return await refresh_token(refresh_token_str, db)
