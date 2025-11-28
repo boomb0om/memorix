@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, or_
 from sqlalchemy.orm import selectinload
-from .models import Course, Lesson
+from .models import Course, CourseACL
 
 
 class CourseDAO:
@@ -50,14 +50,62 @@ class CourseDAO:
         user_id: int
     ) -> list[Course]:
         """Получить все курсы, доступные пользователю (автор или есть в ACL)"""
-        from .models import CourseACL
-        
         result = await session.execute(
             select(Course)
             .outerjoin(CourseACL, Course.id == CourseACL.course_id)
             .where(
                 (Course.author_id == user_id) | 
                 (CourseACL.user_id == user_id)
+            )
+            .distinct()
+            .order_by(Course.created_at.desc())
+        )
+        return result.scalars().all()
+
+    @classmethod
+    async def search_by_author(
+        cls,
+        session: AsyncSession,
+        author_id: int,
+        query: str
+    ) -> list[Course]:
+        """Поиск курсов автора по названию и описанию"""
+        pattern = f"%{query}%"
+        result = await session.execute(
+            select(Course)
+            .where(Course.author_id == author_id)
+            .where(
+                or_(
+                    Course.name.ilike(pattern),
+                    Course.description.ilike(pattern)
+                )
+            )
+            .order_by(Course.created_at.desc())
+        )
+        return result.scalars().all()
+
+    @classmethod
+    async def search_accessible_by_user(
+        cls,
+        session: AsyncSession,
+        user_id: int,
+        query: str
+    ) -> list[Course]:
+        """Поиск курсов, доступных пользователю"""
+
+        pattern = f"%{query}%"
+        result = await session.execute(
+            select(Course)
+            .outerjoin(CourseACL, Course.id == CourseACL.course_id)
+            .where(
+                (
+                    (Course.author_id == user_id) |
+                    (CourseACL.user_id == user_id)
+                ) &
+                or_(
+                    Course.name.ilike(pattern),
+                    Course.description.ilike(pattern)
+                )
             )
             .distinct()
             .order_by(Course.created_at.desc())

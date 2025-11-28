@@ -52,6 +52,28 @@ async def get_my_courses(db: AsyncSession, author_id: int):
     return await CourseDAO.get_all_by_author(db, author_id)
 
 
+async def search_courses(db: AsyncSession, user_id: int, query: str):
+    """Поиск курсов с разделением на свои и остальные"""
+    normalized_query = query.strip()
+    if not normalized_query:
+        user_courses = await get_user_courses(db, user_id)
+        my_courses = [course for course in user_courses if course.author_id == user_id]
+        community_courses = [course for course in user_courses if course.author_id != user_id]
+        return {
+            "my": my_courses,
+            "community": community_courses
+        }
+
+    my_courses = await CourseDAO.search_by_author(db, user_id, normalized_query)
+    accessible_courses = await CourseDAO.search_accessible_by_user(db, user_id, normalized_query)
+    my_ids = {course.id for course in my_courses}
+    community_courses = [course for course in accessible_courses if course.id not in my_ids]
+
+    return {
+        "my": my_courses,
+        "community": community_courses
+    }
+
 async def update_course(
     db: AsyncSession,
     course_id: int,

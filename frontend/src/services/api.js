@@ -169,6 +169,9 @@ export const coursesApi = {
   
   // Сгенерировать план уроков для курса
   generateLessons: (id, data) => api.post(`/api/courses/${id}/generate-lessons`, data || {}),
+
+  // Поиск курсов
+  search: (query) => api.get('/api/courses/search', { params: { query } }),
 };
 
 // API для работы с уроками

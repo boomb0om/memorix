@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
 from courses.schema import (
@@ -6,6 +6,7 @@ from courses.schema import (
     CourseUpdate,
     CourseResponse,
     CourseWithLessons,
+    CourseSearchResponse,
     LessonListItem,
     GenerateLessonsRequest,
 )
@@ -44,6 +45,17 @@ async def get_my_courses(
     """Получить курсы, созданные пользователем"""
     user_id = request.state.user_id
     return await course_service.get_my_courses(db, user_id)
+
+
+@router.get("/search", response_model=CourseSearchResponse)
+async def search_courses(
+    request: Request,
+    query: str = Query(..., min_length=1, max_length=200, description="Строка поиска"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Поиск курсов по названию и описанию"""
+    user_id = request.state.user_id
+    return await course_service.search_courses(db, user_id, query)
 
 
 @router.get("/{course_id}", response_model=CourseResponse)

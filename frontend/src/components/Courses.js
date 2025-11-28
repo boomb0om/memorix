@@ -4,7 +4,8 @@ import Sidebar from './Sidebar';
 import { useSidebar } from '../contexts/SidebarContext';
 
 function Courses() {
-  const [courses, setCourses] = useState([]);
+  const [myCourses, setMyCourses] = useState([]);
+  const [communityCourses, setCommunityCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
   const [selectedLesson, setSelectedLesson] = useState(null);
@@ -29,6 +30,9 @@ function Courses() {
     target_audience: '',
     topics: ''
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const { isSidebarOpen } = useSidebar();
 
   useEffect(() => {
@@ -44,11 +48,32 @@ function Courses() {
     }
   }, [selectedCourse]);
 
-  const loadCourses = async () => {
+  const loadCourses = async (queryText = '') => {
+    const normalizedQuery = queryText.trim();
     try {
       setLoading(true);
-      const response = await coursesApi.getAll();
-      setCourses(response.data || []);
+      if (normalizedQuery) {
+        setIsSearching(true);
+        setActiveSearchQuery(normalizedQuery);
+        const response = await coursesApi.search(normalizedQuery);
+        const myList = response.data?.my || [];
+        const communityList = response.data?.community || [];
+        setMyCourses(myList);
+        setCommunityCourses(communityList);
+      } else {
+        setIsSearching(false);
+        setActiveSearchQuery('');
+        const [allResponse, myResponse] = await Promise.all([
+          coursesApi.getAll(),
+          coursesApi.getMy(),
+        ]);
+        const myList = myResponse.data || [];
+        const allList = allResponse.data || [];
+        const myIds = new Set(myList.map(course => course.id));
+        const communityList = allList.filter(course => !myIds.has(course.id));
+        setMyCourses(myList);
+        setCommunityCourses(communityList);
+      }
       setError(null);
     } catch (err) {
       setError('Не удалось загрузить курсы');
@@ -101,6 +126,24 @@ function Courses() {
     } catch (err) {
       setError('Не удалось загрузить урок');
       console.error('Error loading lesson:', err);
+    }
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    loadCourses(searchQuery);
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery('');
+    loadCourses('');
+  };
+
+  const handleSearchChange = (event) => {
+    const value = event.target.value;
+    setSearchQuery(value);
+    if (value.trim() === '' && isSearching) {
+      loadCourses('');
     }
   };
 
@@ -404,45 +447,8 @@ function Courses() {
     <>
       <Sidebar />
       <div className={`courses-container ${!isSidebarOpen ? 'courses-container-expanded' : ''}`}>
-        {/* Левая панель со списком курсов или уроков */}
-        <div className="courses-list" style={{ display: selectedCourse ? 'none' : 'flex' }}>
-          <div className="courses-list-header">
-            <h2>Курсы</h2>
-            <button onClick={handleCreateNewCourse} className="courses-create-btn">
-              + Создать
-            </button>
-          </div>
-          
-          {loading && <div className="courses-loading">Загрузка...</div>}
-          
-          {!loading && courses.length === 0 && (
-            <div className="courses-empty">
-              <p>У вас пока нет курсов</p>
-              <button onClick={handleCreateNewCourse} className="courses-create-btn-large">
-                Создать первый курс
-              </button>
-            </div>
-          )}
-          
-          {!loading && courses.map(course => (
-            <div
-              key={course.id}
-              className={`courses-item ${selectedCourse?.id === course.id ? 'courses-item-active' : ''}`}
-              onClick={() => handleSelectCourse(course.id)}
-            >
-              <div className="courses-item-title">{course.name}</div>
-              <div className="courses-item-description">
-                {course.description || 'Без описания'}
-              </div>
-              <div className="courses-item-meta">
-                Создан: {formatDate(course.created_at)}
-              </div>
-            </div>
-          ))}
-        </div>
-
         {/* Левая панель со списком уроков */}
-        <div className="courses-list" style={{ display: selectedCourse ? 'flex' : 'none' }}>
+        <div className="lessons-panel" style={{ display: selectedCourse ? 'flex' : 'none' }}>
           <div className="courses-list-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <button 
@@ -494,11 +500,136 @@ function Courses() {
             </div>
           )}
 
-          {/* Плейсхолдер, когда ничего не выбрано */}
-          {!selectedCourse && !isCreatingCourse && (
-            <div className="courses-placeholder">
-              <h2>Выберите курс</h2>
-              <p>Выберите курс из списка слева или создайте новый</p>
+          {/* Карточки курсов */}
+          {!selectedCourse && !isCreatingCourse && !isEditingCourse && (
+            <div className="courses-library">
+              <div className="courses-search-bar">
+                <form className="courses-search-form" onSubmit={handleSearchSubmit}>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    placeholder="Поиск по названиям и описаниям курсов"
+                    className="courses-search-input"
+                  />
+                  {isSearching && (
+                    <button
+                      type="button"
+                      className="courses-search-clear"
+                      onClick={handleSearchClear}
+                    >
+                      Очистить
+                    </button>
+                  )}
+                  <button type="submit" className="courses-search-btn">
+                    Поиск
+                  </button>
+                </form>
+                {isSearching && activeSearchQuery && (
+                  <p className="courses-search-hint">
+                    Показаны результаты по запросу "{activeSearchQuery}"
+                  </p>
+                )}
+              </div>
+              <section className="courses-section">
+                <div className="courses-section-header">
+                  <div>
+                    <h2>Мои курсы</h2>
+                    <p>Создавайте и развивайте собственные программы обучения</p>
+                  </div>
+                  <button onClick={handleCreateNewCourse} className="courses-create-btn">
+                    + Создать курс
+                  </button>
+                </div>
+                {loading ? (
+                  <div className="courses-loading">Загрузка...</div>
+                ) : myCourses.length === 0 ? (
+                  <div className="courses-empty">
+                    <p>{isSearching ? 'По запросу ничего не найдено' : 'У вас пока нет курсов'}</p>
+                    {!isSearching && (
+                      <button onClick={handleCreateNewCourse} className="courses-create-btn-large">
+                        Создать первый курс
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="courses-card-grid">
+                    {myCourses.map(course => (
+                      <div
+                        key={course.id}
+                        className="course-card"
+                        onClick={() => handleSelectCourse(course.id)}
+                      >
+                        <div className="course-card-meta">
+                          <span className="course-card-badge course-card-badge-mine">Мой курс</span>
+                          <span>{formatDate(course.created_at) || '—'}</span>
+                        </div>
+                        <h3 className="course-card-title">{course.name}</h3>
+                        <p className="course-card-description">
+                          {course.description || 'Без описания'}
+                        </p>
+                        <div className="course-card-footer">
+                          <button
+                            className="courses-btn courses-btn-secondary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectCourse(course.id);
+                            }}
+                          >
+                            Открыть
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="courses-section">
+                <div className="courses-section-header">
+                  <div>
+                    <h2>Все курсы</h2>
+                    <p>Курсы, созданные другими пользователями платформы</p>
+                  </div>
+                </div>
+                {loading ? (
+                  <div className="courses-loading">Загрузка...</div>
+                ) : communityCourses.length === 0 ? (
+                  <div className="courses-empty">
+                    <p>{isSearching ? 'По запросу ничего не найдено' : 'Пока нет курсов от других пользователей'}</p>
+                  </div>
+                ) : (
+                  <div className="courses-card-grid">
+                    {communityCourses.map(course => (
+                      <div
+                        key={course.id}
+                        className="course-card"
+                        onClick={() => handleSelectCourse(course.id)}
+                      >
+                        <div className="course-card-meta">
+                          <span className="course-card-badge">Курс сообщества</span>
+                          <span>{formatDate(course.created_at) || '—'}</span>
+                        </div>
+                        <h3 className="course-card-title">{course.name}</h3>
+                        <p className="course-card-description">
+                          {course.description || 'Без описания'}
+                        </p>
+                        <div className="course-card-footer">
+                          <button
+                            className="courses-btn courses-btn-secondary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectCourse(course.id);
+                            }}
+                          >
+                            Подробнее
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
           )}
 

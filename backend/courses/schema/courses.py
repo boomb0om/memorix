@@ -38,6 +38,12 @@ class CourseDetailResponse(CourseResponse):
     lessons: list[LessonResponse] = Field(default_factory=list)
 
 
+class CourseSearchResponse(BaseModel):
+    """Схема для ответа поиска курсов"""
+    my: list[CourseResponse] = Field(default_factory=list)
+    community: list[CourseResponse] = Field(default_factory=list)
+
+
 class GenerateLessonsRequest(BaseModel):
     """Схема для запроса генерации уроков"""
     goal: str | None = Field(default=None, description="Цель курса")

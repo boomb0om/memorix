@@ -1754,7 +1754,7 @@ code {
   left: 0;
 }
 
-.courses-list {
+.lessons-panel {
   width: 320px;
   background: white;
   border-right: 1px solid #e5e7eb;
@@ -1808,6 +1808,209 @@ code {
 .courses-empty p {
   color: #6b7280;
   margin-bottom: 24px;
+}
+
+.courses-library {
+  padding: 32px 48px 48px;
+}
+
+.courses-search-bar {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.courses-search-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.courses-search-input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  font-size: 15px;
+  transition: all 0.2s;
+}
+
+.courses-search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.courses-search-btn,
+.courses-search-clear {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.courses-search-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.courses-search-btn:hover {
+  background: #2563eb;
+}
+
+.courses-search-clear {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.courses-search-clear:hover {
+  background: #e5e7eb;
+}
+
+.courses-search-hint {
+  margin: 12px 0 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.courses-section {
+  margin-bottom: 48px;
+}
+
+.courses-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.courses-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.courses-section-header h2 {
+  margin: 0 0 6px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.courses-section-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.courses-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.course-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.course-card:hover {
+  transform: translateY(-4px);
+  border-color: #dbeafe;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.course-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.course-card-badge {
+  padding: 4px 10px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.course-card-badge-mine {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.course-card-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.course-card-description {
+  margin: 12px 0 24px;
+  color: #475569;
+  line-height: 1.6;
+  flex: 1;
+}
+
+.course-card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1024px) {
+  .courses-library {
+    padding: 24px 32px 40px;
+  }
+
+  .courses-search-bar {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .courses-library {
+    padding: 24px 16px 32px;
+  }
+
+  .courses-search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .courses-search-btn,
+  .courses-search-clear {
+    width: 100%;
+  }
+
+  .courses-section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .course-card {
+    padding: 20px;
+  }
 }
 
 .courses-create-btn-large {
@@ -1896,20 +2099,6 @@ code {
   padding: 0;
   width: 24px;
   height: 24px;
-}
-
-.courses-placeholder {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  color: #6b7280;
-}
-
-.courses-placeholder h2 {
-  margin: 0 0 8px 0;
-  color: #111827;
 }
 
 .courses-view {
@@ -2100,7 +2289,7 @@ code {
     left: 0;
   }
 
-  .courses-list {
+  .lessons-panel {
     width: 280px;
   }
 }
@@ -2110,7 +2299,7 @@ code {
     left: 0;
   }
 
-  .courses-list {
+  .lessons-panel {
     width: 100%;
     max-width: 280px;
   }

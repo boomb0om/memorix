@@ -21,6 +21,7 @@ from .courses import (
     CourseWithLessons,
     CourseDetailResponse,
     GenerateLessonsRequest,
+    CourseSearchResponse,
 )
 
 __all__ = [
