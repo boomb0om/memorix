@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
-from .schema import TheoryGenerateContext, Theory, Lesson
+from .schema import LessonBlocksGenerateContext, GeneratedLessonContent
 
 
 class BaseLessonsGenerator(ABC):
+    """Интерфейс генераторов уроков."""
 
     @abstractmethod
-    async def generate_theory(self, context: TheoryGenerateContext) -> Theory:
+    async def generate_blocks(self, context: LessonBlocksGenerateContext) -> GeneratedLessonContent:
+        """Сгенерировать контент урока из блоков."""
         pass
