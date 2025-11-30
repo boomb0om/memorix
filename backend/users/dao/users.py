@@ -45,3 +45,9 @@ class UserDAO:
         await session.execute(stmt)
         await session.commit()
         return True
+
+    @classmethod
+    async def get_all(cls, session: AsyncSession) -> list[User]:
+        """Получить всех пользователей"""
+        result = await session.execute(select(User))
+        return list(result.scalars().all())

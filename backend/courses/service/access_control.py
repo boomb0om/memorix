@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from courses.dao import CourseDAO
 from courses.dao.models import Course, CourseACL
+from courses.schema.acl import CourseACLGroup
 
 
 async def check_course_access(
@@ -37,13 +38,29 @@ async def check_course_access(
         return True, course
     
     # Проверяем ACL для других пользователей
+    # Сначала проверяем персональный ACL (user_id = конкретный пользователь)
     result = await db.execute(
         select(CourseACL)
-        .where(CourseACL.course_id == course_id, CourseACL.user_id == user_id)
+        .where(
+            CourseACL.course_id == course_id,
+            CourseACL.user_id == user_id
+        )
     )
     acl_entry = result.scalar_one_or_none()
+    if acl_entry is not None:
+        return True, course
     
-    return acl_entry is not None, course
+    # Затем проверяем групповой ACL (group = "all" означает доступ для всех)
+    result = await db.execute(
+        select(CourseACL)
+        .where(
+            CourseACL.course_id == course_id,
+            CourseACL.group == CourseACLGroup.ALL.value
+        )
+    )
+    group_acl = result.scalar_one_or_none()
+    
+    return group_acl is not None, course
 
 
 async def ensure_course_access(

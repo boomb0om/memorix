@@ -31,7 +31,11 @@ class CourseACL(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    group: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    # Если group указан (например, "all"), то доступ для группы пользователей
+    # Если user_id указан, то доступ для конкретного пользователя
+    # Одно из полей (user_id или group) должно быть заполнено
     role: Mapped[str] = mapped_column(String())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
