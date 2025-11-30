@@ -39,6 +39,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URI=postgresql+asyncpg://memorix:hackmemorix@db:5432/memorix_backend
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
     depends_on:
       migration:
         condition: service_completed_successfully
