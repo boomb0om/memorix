@@ -1,10 +1,12 @@
 from typing import Literal, Union
-from pydantic import BaseModel, Field
+from uuid import UUID
+from pydantic import BaseModel, Field, field_validator
 
 
 # Базовый класс для всех блоков
 class BaseBlock(BaseModel):
     """Базовый класс для блоков урока"""
+    block_id: UUID | None = Field(default=None, description="Уникальный идентификатор блока (UUID)")
     type: str = Field(description="Тип блока")
 
 
@@ -77,11 +79,13 @@ class LessonContent(BaseModel):
             "example": {
                 "blocks": [
                     {
+                        "block_id": "550e8400-e29b-41d4-a716-446655440000",
                         "type": "theory",
                         "title": "Введение в Python",
                         "content": "Python - это высокоуровневый язык программирования..."
                     },
                     {
+                        "block_id": "550e8400-e29b-41d4-a716-446655440001",
                         "type": "code",
                         "title": "Пример Hello World",
                         "code": "print('Hello, World!')",
@@ -89,6 +93,7 @@ class LessonContent(BaseModel):
                         "explanation": "Функция print выводит текст на экран"
                     },
                     {
+                        "block_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "single_choice",
                         "question": "Что выведет этот код?",
                         "options": ["Hello, World!", "Hello World", "Ошибка"],
@@ -98,4 +103,23 @@ class LessonContent(BaseModel):
                 ]
             }
         }
+
+
+# Функции для конвертации между схемами блоков и моделями БД
+def block_schema_to_dict(block: LessonBlock) -> dict:
+    """Конвертировать блок из схемы в словарь для БД"""
+    block_dict = block.model_dump(exclude={"block_id"})
+    return block_dict
+
+
+def db_block_to_schema(db_block) -> dict:
+    """Конвертировать блок из БД в схему"""
+    block_dict = {
+        "block_id": str(db_block.id),  # Конвертируем UUID в строку для JSON
+        "type": db_block.type,
+    }
+    # Добавляем данные блока
+    if db_block.data:
+        block_dict.update(db_block.data)
+    return block_dict
 

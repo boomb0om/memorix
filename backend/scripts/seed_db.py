@@ -10,6 +10,7 @@ from core.db.sqlalchemy import AsyncSessionLocal
 from users.dao.users import UserDAO
 from courses.dao.courses import CourseDAO
 from courses.dao.lessons import LessonDAO
+from courses.dao.blocks import LessonBlockDAO
 from core.auth.password import hash_password
 
 logger = logging.getLogger(__name__)
@@ -88,14 +89,26 @@ async def create_sample_lessons(session: AsyncSession, course_id: int):
         }
     ]
 
-    await LessonDAO.create(
+    lesson1 = await LessonDAO.create(
         session,
         course_id=course_id,
         position=0,
         name="Введение",
-        description="Первый урок курса с примерами различных блоков",
-        content={"blocks": lesson1_blocks}
+        description="Первый урок курса с примерами различных блоков"
     )
+    await session.flush()
+    
+    # Создаем блоки
+    blocks_to_create = []
+    for pos, block in enumerate(lesson1_blocks):
+        block_copy = block.copy()  # Копируем, чтобы не изменять оригинал
+        block_type = block_copy.pop("type")
+        blocks_to_create.append({
+            "position": pos,
+            "type": block_type,
+            "data": block_copy
+        })
+    await LessonBlockDAO.create_bulk(session, lesson1.id, blocks_to_create)
 
     # Урок 2: Теория и вопросы
     lesson2_blocks = [
@@ -130,14 +143,26 @@ async def create_sample_lessons(session: AsyncSession, course_id: int):
         }
     ]
 
-    await LessonDAO.create(
+    lesson2 = await LessonDAO.create(
         session,
         course_id=course_id,
         position=1,
         name="Основы программирования",
-        description="Урок о переменных и типах данных",
-        content={"blocks": lesson2_blocks}
+        description="Урок о переменных и типах данных"
     )
+    await session.flush()
+    
+    # Создаем блоки
+    blocks_to_create = []
+    for pos, block in enumerate(lesson2_blocks):
+        block_copy = block.copy()  # Копируем, чтобы не изменять оригинал
+        block_type = block_copy.pop("type")
+        blocks_to_create.append({
+            "position": pos,
+            "type": block_type,
+            "data": block_copy
+        })
+    await LessonBlockDAO.create_bulk(session, lesson2.id, blocks_to_create)
 
     # Урок 3: Вопросы с множественным выбором
     lesson3_blocks = [
@@ -172,14 +197,26 @@ async def create_sample_lessons(session: AsyncSession, course_id: int):
         }
     ]
 
-    await LessonDAO.create(
+    lesson3 = await LessonDAO.create(
         session,
         course_id=course_id,
         position=2,
         name="Управляющие конструкции",
-        description="Урок об условных операторах и циклах",
-        content={"blocks": lesson3_blocks}
+        description="Урок об условных операторах и циклах"
     )
+    await session.flush()
+    
+    # Создаем блоки
+    blocks_to_create = []
+    for pos, block in enumerate(lesson3_blocks):
+        block_copy = block.copy()  # Копируем, чтобы не изменять оригинал
+        block_type = block_copy.pop("type")
+        blocks_to_create.append({
+            "position": pos,
+            "type": block_type,
+            "data": block_copy
+        })
+    await LessonBlockDAO.create_bulk(session, lesson3.id, blocks_to_create)
 
     logger.info("Sample lessons created successfully")
 

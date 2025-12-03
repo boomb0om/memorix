@@ -49,16 +49,14 @@ class LessonDAO:
         course_id: int,
         position: int,
         name: str,
-        description: str | None,
-        content: dict
+        description: str | None
     ) -> Lesson:
         """Создать урок"""
         db_lesson = Lesson(
             course_id=course_id,
             position=position,
             name=name,
-            description=description,
-            content=content
+            description=description
         )
         session.add(db_lesson)
         await session.flush()
@@ -89,15 +87,6 @@ class LessonDAO:
         stmt = update(Lesson).where(Lesson.id == lesson_id).values(**kwargs)
         await session.execute(stmt)
 
-    @classmethod
-    async def update_content(
-        cls,
-        session: AsyncSession,
-        lesson_id: int,
-        content: dict
-    ) -> Lesson | None:
-        """Обновить содержимое урока"""
-        return await cls.update(session, lesson_id, content=content)
 
     @classmethod
     async def delete(cls, session: AsyncSession, lesson_id: int) -> bool:

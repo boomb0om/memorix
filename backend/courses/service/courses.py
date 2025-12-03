@@ -164,8 +164,7 @@ async def generate_lessons_plan(
             course_id=course_id,
             position=idx,
             name=topic.title,
-            description=topic.info,
-            content={"blocks": []}  # Пустые блоки, только план
+            description=topic.info
         )
         created_lessons.append(lesson)
     

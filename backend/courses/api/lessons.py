@@ -1,17 +1,14 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
-from courses.schema import (
-    LessonCreate,
-    LessonUpdate,
-    LessonResponse,
-    LessonListItem,
-)
+from courses.schema import LessonCreate, LessonUpdate, LessonResponse, LessonListItem
+from courses.schema.blocks import LessonBlock
 from pydantic import BaseModel, Field
+from uuid import UUID
 import courses.service.lessons as lesson_service
 
 
-router = APIRouter(prefix="/lessons", tags=["lessons"])
+router = APIRouter(prefix="/{course_id}/lessons", tags=["lessons"])
 
 
 class ReorderRequest(BaseModel):
@@ -21,32 +18,19 @@ class ReorderRequest(BaseModel):
 
 @router.post("", response_model=LessonResponse, status_code=201)
 async def create_lesson(
+    course_id: int,
     lesson: LessonCreate,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Создать новый урок"""
     user_id = request.state.user_id
-    created_lesson = await lesson_service.create_lesson(db, lesson, user_id)
-    
-    # Преобразуем content в blocks для ответа с валидацией
-    blocks = created_lesson.content.get("blocks", [])
-    if not isinstance(blocks, list):
-        blocks = []
-    
-    return LessonResponse(
-        id=created_lesson.id,
-        course_id=created_lesson.course_id,
-        position=created_lesson.position,
-        name=created_lesson.name,
-        description=created_lesson.description,
-        blocks=blocks,
-        created_at=created_lesson.created_at,
-        updated_at=created_lesson.updated_at
-    )
+    # Убеждаемся, что course_id в запросе соответствует переданному в URL
+    lesson.course_id = course_id
+    return await lesson_service.create_lesson(db, lesson, user_id)
 
 
-@router.get("/course/{course_id}", response_model=list[LessonListItem])
+@router.get("", response_model=list[LessonListItem])
 async def get_course_lessons(
     course_id: int,
     request: Request,
@@ -54,50 +38,25 @@ async def get_course_lessons(
 ):
     """Получить все уроки курса"""
     user_id = request.state.user_id
-    lessons = await lesson_service.get_course_lessons(db, course_id, user_id)
-    
-    return [
-        LessonListItem(
-            id=lesson.id,
-            course_id=lesson.course_id,
-            position=lesson.position,
-            name=lesson.name,
-            description=lesson.description,
-            created_at=lesson.created_at
-        )
-        for lesson in lessons
-    ]
+    return await lesson_service.get_course_lessons(db, course_id, user_id)
 
 
 @router.get("/{lesson_id}", response_model=LessonResponse)
 async def get_lesson(
+    course_id: int,
     lesson_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Получить урок по ID"""
     user_id = request.state.user_id
-    lesson = await lesson_service.get_lesson(db, lesson_id, user_id)
-    
-    # Преобразуем content в blocks для ответа с валидацией
-    blocks = lesson.content.get("blocks", [])
-    if not isinstance(blocks, list):
-        blocks = []
-    
-    return LessonResponse(
-        id=lesson.id,
-        course_id=lesson.course_id,
-        position=lesson.position,
-        name=lesson.name,
-        description=lesson.description,
-        blocks=blocks,
-        created_at=lesson.created_at,
-        updated_at=lesson.updated_at
-    )
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
+    return await lesson_service.get_lesson_response(db, lesson_id, user_id)
 
 
 @router.patch("/{lesson_id}", response_model=LessonResponse)
 async def update_lesson(
+    course_id: int,
     lesson_id: int,
     lesson_update: LessonUpdate,
     request: Request,
@@ -105,38 +64,26 @@ async def update_lesson(
 ):
     """Обновить урок"""
     user_id = request.state.user_id
-    updated_lesson = await lesson_service.update_lesson(db, lesson_id, lesson_update, user_id)
-    
-    # Преобразуем content в blocks для ответа с валидацией
-    blocks = updated_lesson.content.get("blocks", [])
-    if not isinstance(blocks, list):
-        blocks = []
-    
-    return LessonResponse(
-        id=updated_lesson.id,
-        course_id=updated_lesson.course_id,
-        position=updated_lesson.position,
-        name=updated_lesson.name,
-        description=updated_lesson.description,
-        blocks=blocks,
-        created_at=updated_lesson.created_at,
-        updated_at=updated_lesson.updated_at
-    )
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
+    return await lesson_service.update_lesson(db, lesson_id, lesson_update, user_id)
 
 
 @router.delete("/{lesson_id}")
 async def delete_lesson(
+    course_id: int,
     lesson_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Удалить урок"""
     user_id = request.state.user_id
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
     return await lesson_service.delete_lesson(db, lesson_id, user_id)
 
 
 @router.post("/{lesson_id}/reorder", response_model=LessonResponse)
 async def reorder_lesson(
+    course_id: int,
     lesson_id: int,
     reorder_request: ReorderRequest,
     request: Request,
@@ -144,26 +91,82 @@ async def reorder_lesson(
 ):
     """Изменить позицию урока"""
     user_id = request.state.user_id
-    updated_lesson = await lesson_service.reorder_lesson(
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
+    return await lesson_service.reorder_lesson(
         db,
         lesson_id,
         reorder_request.new_position,
         user_id
     )
+
+
+@router.patch("/{lesson_id}/blocks/{block_id}", response_model=LessonResponse)
+async def update_block(
+    course_id: int,
+    lesson_id: int,
+    block_id: UUID,
+    block_update: LessonBlock,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Обновить отдельный блок урока"""
+    user_id = request.state.user_id
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
     
-    # Преобразуем content в blocks для ответа с валидацией
-    blocks = updated_lesson.content.get("blocks", [])
-    if not isinstance(blocks, list):
-        blocks = []
+    # Конвертируем блок в словарь для обновления
+    block_dict = block_update.model_dump(exclude={"block_id"})
+    block_dict["type"] = block_update.type
     
-    return LessonResponse(
-        id=updated_lesson.id,
-        course_id=updated_lesson.course_id,
-        position=updated_lesson.position,
-        name=updated_lesson.name,
-        description=updated_lesson.description,
-        blocks=blocks,
-        created_at=updated_lesson.created_at,
-        updated_at=updated_lesson.updated_at
+    return await lesson_service.update_block(
+        db,
+        lesson_id,
+        block_id,
+        block_dict,
+        user_id
+    )
+
+
+@router.post("/{lesson_id}/blocks/{block_id}/reorder", response_model=LessonResponse)
+async def reorder_block(
+    course_id: int,
+    lesson_id: int,
+    block_id: UUID,
+    reorder_request: ReorderRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Изменить позицию блока в уроке"""
+    user_id = request.state.user_id
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
+    return await lesson_service.reorder_block(
+        db,
+        lesson_id,
+        block_id,
+        reorder_request.new_position,
+        user_id
+    )
+
+
+@router.post("/{lesson_id}/blocks", response_model=LessonResponse)
+async def add_block(
+    course_id: int,
+    lesson_id: int,
+    block: LessonBlock,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Добавить новый блок к уроку"""
+    user_id = request.state.user_id
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
+    
+    # Конвертируем блок в словарь
+    block_dict = block.model_dump(exclude={"block_id"})
+    block_dict["type"] = block.type
+    
+    return await lesson_service.add_block_to_lesson(
+        db,
+        lesson_id,
+        block_dict,
+        user_id
     )
 

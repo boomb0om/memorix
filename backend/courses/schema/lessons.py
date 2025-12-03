@@ -17,7 +17,6 @@ class LessonUpdate(BaseModel):
     name: str | None = Field(default=None, description="Название урока", min_length=1, max_length=200)
     description: str | None = Field(default=None, description="Описание урока", max_length=1000)
     position: int | None = Field(default=None, description="Позиция урока", ge=0)
-    blocks: list[LessonBlock] | None = Field(default=None, description="Блоки урока")
 
 
 class LessonResponse(BaseModel):

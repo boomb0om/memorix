@@ -69,6 +69,24 @@ function AppContent() {
             ) : <Navigate to="/login" />} 
           />
           <Route 
+            path="/courses/:courseId" 
+            element={user ? (
+              <SidebarProvider>
+                <Navbar />
+                <Courses />
+              </SidebarProvider>
+            ) : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/courses/:courseId/lessons/:lessonId" 
+            element={user ? (
+              <SidebarProvider>
+                <Navbar />
+                <Courses />
+              </SidebarProvider>
+            ) : <Navigate to="/login" />} 
+          />
+          <Route 
             path="/" 
             element={<Navigate to={user ? "/chat" : "/login"} />} 
           />
