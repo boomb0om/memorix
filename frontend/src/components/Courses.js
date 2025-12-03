@@ -51,6 +51,8 @@ function Courses() {
   const [draggedBlockId, setDraggedBlockId] = useState(null);
   const [dragOverBlockIndex, setDragOverBlockIndex] = useState(null);
   const [isDraggingBlock, setIsDraggingBlock] = useState(false);
+  const [questionAnswers, setQuestionAnswers] = useState({}); // { blockId: answer } для хранения выбранных ответов
+  const [checkedQuestions, setCheckedQuestions] = useState({}); // { blockId: { is_correct, correct_answer/answers, explanation } } для проверенных вопросов
   const { isSidebarOpen } = useSidebar();
 
   // Загрузка списка курсов при монтировании
@@ -72,8 +74,13 @@ function Courses() {
             const lessonIdNum = parseInt(lessonId);
             const lessonResponse = await lessonsApi.getById(courseIdNum, lessonIdNum);
             setSelectedLesson(lessonResponse.data);
+            // Сбрасываем состояния ответов при загрузке нового урока
+            setQuestionAnswers({});
+            setCheckedQuestions({});
           } else {
             setSelectedLesson(null);
+            setQuestionAnswers({});
+            setCheckedQuestions({});
           }
         } catch (err) {
           setError('Не удалось загрузить курс или урок');
@@ -778,6 +785,57 @@ function Courses() {
   // Проверка, является ли текущий пользователь автором курса
   const isCourseAuthor = () => {
     return selectedCourse && user && selectedCourse.author_id === user.id;
+  };
+
+  // Обработчик выбора ответа для single_choice
+  const handleSingleChoiceSelect = (blockId, answerIndex) => {
+    setQuestionAnswers(prev => ({
+      ...prev,
+      [blockId]: answerIndex
+    }));
+  };
+
+  // Обработчик выбора ответа для multiple_choice
+  const handleMultipleChoiceToggle = (blockId, answerIndex) => {
+    setQuestionAnswers(prev => {
+      const currentAnswers = prev[blockId] || [];
+      const newAnswers = currentAnswers.includes(answerIndex)
+        ? currentAnswers.filter(a => a !== answerIndex)
+        : [...currentAnswers, answerIndex];
+      return {
+        ...prev,
+        [blockId]: newAnswers
+      };
+    });
+  };
+
+  // Обработчик проверки ответа
+  const handleCheckAnswer = async (blockId) => {
+    if (!selectedCourse || !selectedLesson) return;
+    
+    const userAnswer = questionAnswers[blockId];
+    if (userAnswer === undefined || (Array.isArray(userAnswer) && userAnswer.length === 0)) {
+      alert('Пожалуйста, выберите ответ');
+      return;
+    }
+
+    try {
+      const response = await lessonsApi.checkAnswer(
+        selectedCourse.id,
+        selectedLesson.id,
+        blockId,
+        userAnswer
+      );
+      
+      const result = response.data;
+      setCheckedQuestions(prev => ({
+        ...prev,
+        [blockId]: result
+      }));
+    } catch (error) {
+      console.error('Error checking answer:', error);
+      alert('Ошибка при проверке ответа');
+    }
   };
 
   // Обработчики для drag and drop
@@ -1667,28 +1725,93 @@ function Courses() {
                             <div>
                               <div className="lesson-block-type-badge">❓ Вопрос (один ответ)</div>
                               <h4 style={{ marginTop: '12px', marginBottom: '12px' }}>{block.question || 'Вопрос не указан'}</h4>
-                              <ul style={{ listStyle: 'none', padding: 0 }}>
-                                {(block.options || []).map((opt, optIdx) => (
-                                  <li key={optIdx} style={{ 
-                                    padding: '8px 12px', 
-                                    marginBottom: '8px', 
-                                    background: optIdx === block.correct_answer ? '#d1fae5' : '#f3f4f6',
-                                    border: optIdx === block.correct_answer ? '2px solid #10b981' : '1px solid #e5e7eb',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                  }}>
-                                    <span>{optIdx === block.correct_answer ? '✓' : '○'}</span>
-                                    <span>{opt || `Вариант ${optIdx + 1}`}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {block.explanation && (
-                                <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
-                                  <strong>Пояснение:</strong>
-                                  <ReactMarkdown>{block.explanation}</ReactMarkdown>
-                                </div>
+                              {isCourseAuthor() ? (
+                                // Для автора показываем правильные ответы
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => (
+                                      <li key={optIdx} style={{ 
+                                        padding: '8px 12px', 
+                                        marginBottom: '8px', 
+                                        background: optIdx === block.correct_answer ? '#d1fae5' : '#f3f4f6',
+                                        border: optIdx === block.correct_answer ? '2px solid #10b981' : '1px solid #e5e7eb',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}>
+                                        <span>{optIdx === block.correct_answer ? '✓' : '○'}</span>
+                                        <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  {block.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{block.explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                // Для не-автора показываем интерактивный вопрос
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => {
+                                      const selectedAnswer = questionAnswers[block.block_id];
+                                      const checkedResult = checkedQuestions[block.block_id];
+                                      const isSelected = selectedAnswer === optIdx;
+                                      const showCorrect = checkedResult?.is_correct && checkedResult?.correct_answer === optIdx;
+                                      
+                                      return (
+                                        <li 
+                                          key={optIdx} 
+                                          onClick={() => !checkedResult?.is_correct && handleSingleChoiceSelect(block.block_id, optIdx)}
+                                          style={{ 
+                                            padding: '8px 12px', 
+                                            marginBottom: '8px', 
+                                            background: showCorrect ? '#d1fae5' : isSelected ? '#e0e7ff' : '#f3f4f6',
+                                            border: showCorrect ? '2px solid #10b981' : isSelected ? '2px solid #6366f1' : '1px solid #e5e7eb',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            cursor: checkedResult?.is_correct ? 'default' : 'pointer',
+                                            transition: 'all 0.2s'
+                                          }}
+                                        >
+                                          <span>
+                                            {showCorrect ? '✓' : isSelected ? '●' : '○'}
+                                          </span>
+                                          <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                  {!checkedQuestions[block.block_id]?.is_correct && (
+                                    <button
+                                      onClick={() => handleCheckAnswer(block.block_id)}
+                                      disabled={questionAnswers[block.block_id] === undefined}
+                                      style={{
+                                        marginTop: '12px',
+                                        padding: '8px 16px',
+                                        background: questionAnswers[block.block_id] !== undefined ? '#6366f1' : '#9ca3af',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: questionAnswers[block.block_id] !== undefined ? 'pointer' : 'not-allowed',
+                                        fontWeight: '500'
+                                      }}
+                                    >
+                                      Проверить ответ
+                                    </button>
+                                  )}
+                                  {checkedQuestions[block.block_id]?.is_correct && checkedQuestions[block.block_id]?.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{checkedQuestions[block.block_id].explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
@@ -1696,28 +1819,93 @@ function Courses() {
                             <div>
                               <div className="lesson-block-type-badge">❓ Вопрос (несколько ответов)</div>
                               <h4 style={{ marginTop: '12px', marginBottom: '12px' }}>{block.question || 'Вопрос не указан'}</h4>
-                              <ul style={{ listStyle: 'none', padding: 0 }}>
-                                {(block.options || []).map((opt, optIdx) => (
-                                  <li key={optIdx} style={{ 
-                                    padding: '8px 12px', 
-                                    marginBottom: '8px', 
-                                    background: (block.correct_answers || []).includes(optIdx) ? '#d1fae5' : '#f3f4f6',
-                                    border: (block.correct_answers || []).includes(optIdx) ? '2px solid #10b981' : '1px solid #e5e7eb',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                  }}>
-                                    <span>{(block.correct_answers || []).includes(optIdx) ? '✓' : '☐'}</span>
-                                    <span>{opt || `Вариант ${optIdx + 1}`}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {block.explanation && (
-                                <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
-                                  <strong>Пояснение:</strong>
-                                  <ReactMarkdown>{block.explanation}</ReactMarkdown>
-                                </div>
+                              {isCourseAuthor() ? (
+                                // Для автора показываем правильные ответы
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => (
+                                      <li key={optIdx} style={{ 
+                                        padding: '8px 12px', 
+                                        marginBottom: '8px', 
+                                        background: (block.correct_answers || []).includes(optIdx) ? '#d1fae5' : '#f3f4f6',
+                                        border: (block.correct_answers || []).includes(optIdx) ? '2px solid #10b981' : '1px solid #e5e7eb',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}>
+                                        <span>{(block.correct_answers || []).includes(optIdx) ? '✓' : '☐'}</span>
+                                        <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  {block.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{block.explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                // Для не-автора показываем интерактивный вопрос
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => {
+                                      const selectedAnswers = questionAnswers[block.block_id] || [];
+                                      const checkedResult = checkedQuestions[block.block_id];
+                                      const isSelected = selectedAnswers.includes(optIdx);
+                                      const showCorrect = checkedResult?.is_correct && (checkedResult?.correct_answers || []).includes(optIdx);
+                                      
+                                      return (
+                                        <li 
+                                          key={optIdx} 
+                                          onClick={() => !checkedResult?.is_correct && handleMultipleChoiceToggle(block.block_id, optIdx)}
+                                          style={{ 
+                                            padding: '8px 12px', 
+                                            marginBottom: '8px', 
+                                            background: showCorrect ? '#d1fae5' : isSelected ? '#e0e7ff' : '#f3f4f6',
+                                            border: showCorrect ? '2px solid #10b981' : isSelected ? '2px solid #6366f1' : '1px solid #e5e7eb',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            cursor: checkedResult?.is_correct ? 'default' : 'pointer',
+                                            transition: 'all 0.2s'
+                                          }}
+                                        >
+                                          <span>
+                                            {showCorrect ? '✓' : isSelected ? '☑' : '☐'}
+                                          </span>
+                                          <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                  {!checkedQuestions[block.block_id]?.is_correct && (
+                                    <button
+                                      onClick={() => handleCheckAnswer(block.block_id)}
+                                      disabled={!questionAnswers[block.block_id] || questionAnswers[block.block_id].length === 0}
+                                      style={{
+                                        marginTop: '12px',
+                                        padding: '8px 16px',
+                                        background: (questionAnswers[block.block_id] && questionAnswers[block.block_id].length > 0) ? '#6366f1' : '#9ca3af',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: (questionAnswers[block.block_id] && questionAnswers[block.block_id].length > 0) ? 'pointer' : 'not-allowed',
+                                        fontWeight: '500'
+                                      }}
+                                    >
+                                      Проверить ответ
+                                    </button>
+                                  )}
+                                  {checkedQuestions[block.block_id]?.is_correct && checkedQuestions[block.block_id]?.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{checkedQuestions[block.block_id].explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}

@@ -202,6 +202,9 @@ export const lessonsApi = {
   
   // Добавить новый блок к уроку
   addBlock: (courseId, lessonId, blockData) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks`, blockData),
+  
+  // Проверить ответ на вопрос
+  checkAnswer: (courseId, lessonId, blockId, answer) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}/check-answer`, { answer }),
 };
 
 export default api;

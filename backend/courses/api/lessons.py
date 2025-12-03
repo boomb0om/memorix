@@ -16,6 +16,11 @@ class ReorderRequest(BaseModel):
     new_position: int = Field(description="Новая позиция урока", ge=0)
 
 
+class CheckAnswerRequest(BaseModel):
+    """Схема для проверки ответа на вопрос"""
+    answer: int | list[int] = Field(description="Ответ пользователя (int для single_choice, list[int] для multiple_choice)")
+
+
 @router.post("", response_model=LessonResponse, status_code=201)
 async def create_lesson(
     course_id: int,
@@ -167,6 +172,27 @@ async def add_block(
         db,
         lesson_id,
         block_dict,
+        user_id
+    )
+
+
+@router.post("/{lesson_id}/blocks/{block_id}/check-answer")
+async def check_answer(
+    course_id: int,
+    lesson_id: int,
+    block_id: UUID,
+    check_request: CheckAnswerRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Проверить ответ пользователя на вопрос"""
+    user_id = request.state.user_id
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
+    return await lesson_service.check_question_answer(
+        db,
+        lesson_id,
+        block_id,
+        check_request.answer,
         user_id
     )
 

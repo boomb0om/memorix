@@ -85,12 +85,25 @@ async def create_lesson(db: AsyncSession, lesson: LessonCreate, user_id: int) ->
     )
 
 
-def convert_blocks_for_response(lesson):
-    """Конвертировать блоки из БД в формат для ответа"""
+def convert_blocks_for_response(lesson, is_author: bool = True):
+    """Конвертировать блоки из БД в формат для ответа
+    
+    Args:
+        lesson: Урок с блоками
+        is_author: Является ли пользователь автором курса. Если False, скрывает правильные ответы
+    """
     blocks = []
     if lesson.blocks:
         for db_block in lesson.blocks:
             block_dict = db_block_to_schema(db_block)
+            # Если пользователь не автор, скрываем правильные ответы
+            if not is_author:
+                if block_dict.get("type") == "single_choice":
+                    block_dict.pop("correct_answer", None)
+                    block_dict.pop("explanation", None)
+                elif block_dict.get("type") == "multiple_choice":
+                    block_dict.pop("correct_answers", None)
+                    block_dict.pop("explanation", None)
             blocks.append(block_dict)
     return blocks
 
@@ -121,7 +134,13 @@ async def get_lesson(db: AsyncSession, lesson_id: int, user_id: int):
 async def get_lesson_response(db: AsyncSession, lesson_id: int, user_id: int) -> LessonResponse:
     """Получить урок по ID и вернуть в формате LessonResponse"""
     lesson = await get_lesson(db, lesson_id, user_id)
-    blocks = convert_blocks_for_response(lesson)
+    
+    # Проверяем, является ли пользователь автором курса
+    from courses.service.access_control import check_course_access
+    is_author, _ = await check_course_access(db, lesson.course_id, user_id, require_author=False)
+    # is_author будет True только если пользователь - автор курса
+    
+    blocks = convert_blocks_for_response(lesson, is_author=is_author)
     
     return LessonResponse(
         id=lesson.id,
@@ -458,6 +477,83 @@ async def update_block(
         created_at=updated_lesson.created_at,
         updated_at=updated_lesson.updated_at
     )
+
+
+async def check_question_answer(
+    db: AsyncSession,
+    lesson_id: int,
+    block_id: UUID,
+    user_answer: int | list[int],
+    user_id: int
+) -> dict:
+    """
+    Проверить ответ пользователя на вопрос
+    
+    Args:
+        db: Сессия базы данных
+        lesson_id: ID урока
+        block_id: ID блока с вопросом
+        user_answer: Ответ пользователя (int для single_choice, list[int] для multiple_choice)
+        user_id: ID пользователя
+    
+    Returns:
+        dict: {
+            "is_correct": bool,
+            "correct_answer": int | list[int] | None,  # Правильный ответ (только если ответ правильный)
+            "explanation": str | None  # Пояснение (только если ответ правильный)
+        }
+    """
+    lesson = await LessonDAO.get_by_id(db, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    
+    # Проверка доступа к курсу (не требуется быть автором)
+    await ensure_course_access(db, lesson.course_id, user_id, require_author=False)
+    
+    # Проверяем, что блок существует и принадлежит уроку
+    block = await LessonBlockDAO.get_by_id(db, block_id)
+    if not block:
+        raise HTTPException(status_code=404, detail="Block not found")
+    
+    if block.lesson_id != lesson_id:
+        raise HTTPException(status_code=404, detail="Block does not belong to this lesson")
+    
+    if block.type not in ["single_choice", "multiple_choice"]:
+        raise HTTPException(status_code=400, detail="Block is not a question")
+    
+    block_data = block.data
+    
+    if block.type == "single_choice":
+        correct_answer = block_data.get("correct_answer")
+        if not isinstance(user_answer, int):
+            raise HTTPException(status_code=400, detail="Invalid answer format for single_choice question")
+        
+        is_correct = user_answer == correct_answer
+        
+        return {
+            "is_correct": is_correct,
+            "correct_answer": correct_answer if is_correct else None,
+            "explanation": block_data.get("explanation") if is_correct else None
+        }
+    
+    elif block.type == "multiple_choice":
+        correct_answers = block_data.get("correct_answers", [])
+        if not isinstance(user_answer, list):
+            raise HTTPException(status_code=400, detail="Invalid answer format for multiple_choice question")
+        
+        # Сортируем для сравнения
+        user_answer_sorted = sorted(user_answer)
+        correct_answers_sorted = sorted(correct_answers)
+        
+        is_correct = user_answer_sorted == correct_answers_sorted
+        
+        return {
+            "is_correct": is_correct,
+            "correct_answers": correct_answers if is_correct else None,
+            "explanation": block_data.get("explanation") if is_correct else None
+        }
+    
+    raise HTTPException(status_code=400, detail="Unsupported question type")
 
 
 async def reorder_block(
