@@ -84,3 +84,17 @@ class LessonBlock(Base):
 
     # Relationships
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="blocks")
+
+
+class UserQuestionAnswer(Base):
+    """Модель для хранения успешных ответов пользователей на вопросы"""
+    __tablename__ = "user_question_answers"
+    __table_args__ = (
+        Index("ux_user_question_answer", "user_id", "block_id", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    block_id: Mapped[UUID] = mapped_column(ForeignKey("lesson_blocks.id", ondelete="CASCADE"), nullable=False)
+    answer: Mapped[dict] = mapped_column(postgresql.JSONB(), nullable=False)  # Сохраненный ответ (int или list[int])
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

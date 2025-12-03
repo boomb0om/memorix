@@ -1760,6 +1760,7 @@ function Courses() {
                                       const selectedAnswer = questionAnswers[block.block_id];
                                       const checkedResult = checkedQuestions[block.block_id];
                                       const isSelected = selectedAnswer === optIdx;
+                                      // Показываем правильный ответ только после успешной проверки в текущей сессии
                                       const showCorrect = checkedResult?.is_correct && checkedResult?.correct_answer === optIdx;
                                       
                                       return (
@@ -1854,6 +1855,7 @@ function Courses() {
                                       const selectedAnswers = questionAnswers[block.block_id] || [];
                                       const checkedResult = checkedQuestions[block.block_id];
                                       const isSelected = selectedAnswers.includes(optIdx);
+                                      // Показываем правильные ответы только после успешной проверки в текущей сессии
                                       const showCorrect = checkedResult?.is_correct && (checkedResult?.correct_answers || []).includes(optIdx);
                                       
                                       return (

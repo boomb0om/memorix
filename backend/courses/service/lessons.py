@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from courses.schema import LessonCreate, LessonUpdate, LessonResponse, LessonListItem
-from courses.dao import CourseDAO, LessonDAO, LessonBlockDAO
+from courses.dao import CourseDAO, LessonDAO, LessonBlockDAO, UserQuestionAnswerDAO
 from courses.dao.models import Lesson
 from courses.service.access_control import ensure_course_access
 from courses.schema.blocks import block_schema_to_dict, db_block_to_schema
@@ -96,7 +96,9 @@ def convert_blocks_for_response(lesson, is_author: bool = True):
     if lesson.blocks:
         for db_block in lesson.blocks:
             block_dict = db_block_to_schema(db_block)
-            # Если пользователь не автор, скрываем правильные ответы
+            
+            # Если пользователь не автор, всегда скрываем правильные ответы
+            # Правильные ответы будут показаны только после успешной проверки в текущей сессии
             if not is_author:
                 if block_dict.get("type") == "single_choice":
                     block_dict.pop("correct_answer", None)
@@ -140,6 +142,12 @@ async def get_lesson_response(db: AsyncSession, lesson_id: int, user_id: int) ->
     is_author, _ = await check_course_access(db, lesson.course_id, user_id, require_author=False)
     # is_author будет True только если пользователь - автор курса
     
+    # Загружаем сохраненные ответы пользователя для этого урока (для информации, но не показываем правильные ответы сразу)
+    saved_answers = await UserQuestionAnswerDAO.get_all_by_user_and_lesson(db, user_id, lesson_id)
+    saved_answers_dict = {str(answer.block_id): answer.answer for answer in saved_answers}
+    
+    # Не передаем saved_answers в convert_blocks_for_response, чтобы не показывать правильные ответы сразу
+    # Правильные ответы будут показаны только после успешной проверки в текущей сессии
     blocks = convert_blocks_for_response(lesson, is_author=is_author)
     
     return LessonResponse(
@@ -530,6 +538,16 @@ async def check_question_answer(
         
         is_correct = user_answer == correct_answer
         
+        # Сохраняем успешный ответ
+        if is_correct:
+            await UserQuestionAnswerDAO.create_or_update(
+                db,
+                user_id,
+                block_id,
+                user_answer
+            )
+            await db.commit()
+        
         return {
             "is_correct": is_correct,
             "correct_answer": correct_answer if is_correct else None,
@@ -546,6 +564,16 @@ async def check_question_answer(
         correct_answers_sorted = sorted(correct_answers)
         
         is_correct = user_answer_sorted == correct_answers_sorted
+        
+        # Сохраняем успешный ответ
+        if is_correct:
+            await UserQuestionAnswerDAO.create_or_update(
+                db,
+                user_id,
+                block_id,
+                user_answer
+            )
+            await db.commit()
         
         return {
             "is_correct": is_correct,
