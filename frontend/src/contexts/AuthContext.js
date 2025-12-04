@@ -57,9 +57,22 @@ export function AuthProvider({ children }) {
       await api.post('/api/users/register', { email, username, password });
       return { success: true };
     } catch (error) {
+      let errorMessage = 'Ошибка регистрации';
+      
+      if (error.response?.data?.detail) {
+        // Handle Pydantic validation errors (array format)
+        if (Array.isArray(error.response.data.detail)) {
+          const firstError = error.response.data.detail[0];
+          errorMessage = firstError?.msg || firstError?.message || errorMessage;
+        } else {
+          // Handle string error messages
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
       return { 
         success: false, 
-        error: error.response?.data?.detail || 'Registration failed' 
+        error: errorMessage
       };
     }
   };
