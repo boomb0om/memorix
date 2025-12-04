@@ -10,10 +10,9 @@ function Sidebar() {
   const location = useLocation();
 
   const menuItems = [
-    { icon: '💬', label: 'Чат', path: '/chat' },
-    { icon: '📄', label: 'Документы', path: '/documents' },
-    { icon: '📝', label: 'Конспекты', path: '/notes' },
     { icon: '📚', label: 'Курсы', path: '/courses' },
+    { icon: '📝', label: 'Конспекты', path: '/notes' },
+    { icon: '📄', label: 'Документы', path: '/documents', disabled: true, soon: true },
   ];
 
   const handleMenuClick = (path) => {
@@ -28,11 +27,13 @@ function Sidebar() {
           {menuItems.map((item, index) => (
             <div 
               key={index} 
-              className={`sidebar-item ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => handleMenuClick(item.path)}
+              className={`sidebar-item ${location.pathname === item.path ? 'active' : ''} ${item.disabled ? 'sidebar-item-disabled' : ''}`}
+              onClick={item.disabled ? undefined : () => handleMenuClick(item.path)}
+              style={item.disabled ? { cursor: 'not-allowed' } : {}}
             >
               <span className="sidebar-icon">{item.icon}</span>
               <span className="sidebar-label">{item.label}</span>
+              {item.soon && <span className="sidebar-soon">SOON</span>}
             </div>
           ))}
         </div>

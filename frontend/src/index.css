@@ -291,6 +291,17 @@ code {
   color: white;
 }
 
+.sidebar-item-disabled {
+  opacity: 0.5;
+  color: #9ca3af !important;
+  pointer-events: none;
+}
+
+.sidebar-item-disabled:hover {
+  background: transparent !important;
+  color: #9ca3af !important;
+}
+
 .sidebar-icon {
   font-size: 20px;
 }
@@ -298,6 +309,19 @@ code {
 .sidebar-label {
   font-size: 15px;
   font-weight: 500;
+  flex: 1;
+}
+
+.sidebar-soon {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: auto;
+  padding: 2px 6px;
+  background: #f3f4f6;
+  border-radius: 4px;
 }
 
 /* Dashboard Container */
@@ -1230,8 +1254,8 @@ code {
 
 .notes-view-content {
   font-size: 16px;
-  line-height: 1.7;
   color: #374151;
+  white-space: normal;
 }
 
 .notes-view-content h1,
@@ -1265,13 +1289,20 @@ code {
   font-family: 'Courier New', monospace;
 }
 
-.notes-view-content ul {
-  margin: 12px 0;
-  padding-left: 24px;
+.notes-view-content ul,
+.notes-view-content ol {
+  margin: 6px 0;
+  padding-left: 18px;
 }
 
 .notes-view-content li {
-  margin: 8px 0;
+  margin: 2px 0;
+}
+
+.notes-view-content ul ul,
+.notes-view-content ol ol {
+  margin: 4px 0;
+  padding-left: 16px;
 }
 
 .notes-view-content a {
@@ -1427,6 +1458,7 @@ code {
   font-size: 14px;
   line-height: 1.7;
   color: #374151;
+  white-space: normal;
 }
 
 .notes-preview h1,
@@ -1460,13 +1492,20 @@ code {
   font-family: 'Courier New', monospace;
 }
 
-.notes-preview ul {
-  margin: 8px 0;
-  padding-left: 20px;
+.notes-preview ul,
+.notes-preview ol {
+  margin: 6px 0;
+  padding-left: 18px;
 }
 
 .notes-preview li {
+  margin: 2px 0;
+}
+
+.notes-preview ul ul,
+.notes-preview ol ol {
   margin: 4px 0;
+  padding-left: 16px;
 }
 
 .notes-preview a {
@@ -2435,7 +2474,7 @@ code {
   font-size: 14px;
   color: #374151;
   line-height: 1.6;
-  white-space: pre-wrap;
+  white-space: normal;
   word-wrap: break-word;
 }
 
@@ -2572,13 +2611,20 @@ code {
   font-size: 13px;
 }
 
-.lesson-block-preview ul {
-  margin: 8px 0;
-  padding-left: 20px;
+.lesson-block-preview ul,
+.lesson-block-preview ol {
+  margin: 6px 0;
+  padding-left: 18px;
 }
 
 .lesson-block-preview li {
+  margin: 2px 0;
+}
+
+.lesson-block-preview ul ul,
+.lesson-block-preview ol ol {
   margin: 4px 0;
+  padding-left: 16px;
 }
 
 @media (max-width: 768px) {
@@ -2782,8 +2828,8 @@ code {
 .courses-view-content ul,
 .lesson-card-description ul,
 .lesson-block-content ul {
-  margin: 8px 0;
-  padding-left: 24px;
+  margin: 6px 0;
+  padding-left: 18px;
 }
 
 .course-card-description ol,
@@ -2791,8 +2837,8 @@ code {
 .courses-view-content ol,
 .lesson-card-description ol,
 .lesson-block-content ol {
-  margin: 8px 0;
-  padding-left: 24px;
+  margin: 6px 0;
+  padding-left: 18px;
 }
 
 .course-card-description li,
@@ -2800,7 +2846,7 @@ code {
 .courses-view-content li,
 .lesson-card-description li,
 .lesson-block-content li {
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .course-card-description strong,

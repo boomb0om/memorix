@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SidebarProvider } from './contexts/SidebarContext';
 import Login from './components/Login';
 import Register from './components/Register';
-import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
 import Notes from './components/Notes';
 import Courses from './components/Courses';
@@ -23,24 +22,15 @@ function AppContent() {
         <Routes>
           <Route 
             path="/login" 
-            element={user ? <Navigate to="/chat" /> : <Login />} 
+            element={user ? <Navigate to="/notes" /> : <Login />} 
           />
           <Route 
             path="/register" 
-            element={user ? <Navigate to="/chat" /> : <Register />} 
-          />
-          <Route 
-            path="/chat" 
-            element={user ? (
-              <SidebarProvider>
-                <Navbar />
-                <Dashboard />
-              </SidebarProvider>
-            ) : <Navigate to="/login" />} 
+            element={user ? <Navigate to="/notes" /> : <Register />} 
           />
           <Route 
             path="/dashboard" 
-            element={<Navigate to="/chat" />} 
+            element={<Navigate to="/notes" />} 
           />
           <Route 
             path="/profile" 
@@ -88,7 +78,7 @@ function AppContent() {
           />
           <Route 
             path="/" 
-            element={<Navigate to={user ? "/chat" : "/login"} />} 
+            element={<Navigate to={user ? "/courses" : "/login"} />} 
           />
         </Routes>
       </div>
