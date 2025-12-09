@@ -46,3 +46,17 @@ class LessonListItem(BaseModel):
     class Config:
         from_attributes = True
 
+
+class GenerateLessonContentRequest(BaseModel):
+    """Схема запроса для генерации контента урока"""
+    context: str | None = Field(default=None, description="Конспект или материалы, на основе которых нужно создать урок")
+    goal: str | None = Field(default=None, description="Что студент должен уметь после урока", max_length=500)
+    focus_points: list[str] | None = Field(
+        default=None,
+        description="Ключевые аспекты, которые обязательно нужно раскрыть"
+    )
+
+
+class GenerateLessonContentResponse(BaseModel):
+    """Схема ответа с сгенерированным контентом урока"""
+    blocks: list[LessonBlock] = Field(description="Сгенерированные блоки урока")

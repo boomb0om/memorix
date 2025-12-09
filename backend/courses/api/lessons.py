@@ -176,6 +176,24 @@ async def add_block(
     )
 
 
+@router.delete("/{lesson_id}/blocks/{block_id}", response_model=LessonResponse)
+async def delete_block(
+    course_id: int,
+    lesson_id: int,
+    block_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    user_id = request.state.user_id
+    await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
+    return await lesson_service.delete_block(
+        db,
+        lesson_id,
+        block_id,
+        user_id
+    )
+
+
 @router.post("/{lesson_id}/blocks/{block_id}/check-answer")
 async def check_answer(
     course_id: int,

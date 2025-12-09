@@ -35,6 +35,7 @@ function Courses() {
   const [isCreatingLesson, setIsCreatingLesson] = useState(false);
   const [isGeneratingLessons, setIsGeneratingLessons] = useState(false);
   const [showGenerateLessonsModal, setShowGenerateLessonsModal] = useState(false);
+  const [isGeneratingLessonContent, setIsGeneratingLessonContent] = useState(false);
   const [generateFormData, setGenerateFormData] = useState({
     goal: '',
     start_knowledge: '',
@@ -383,6 +384,43 @@ function Courses() {
     }
   };
 
+  const handleGenerateLessonContent = async () => {
+    if (!selectedCourse || !selectedLesson) {
+      setError('Урок не выбран');
+      return;
+    }
+
+    try {
+      setIsGeneratingLessonContent(true);
+      setError(null);
+
+      // Вызываем API для генерации контента
+      const response = await lessonsApi.generateContent(selectedCourse.id, selectedLesson.id, {
+        context: null,
+        goal: null,
+        focus_points: null
+      });
+
+      const generatedBlocks = response.data.blocks || [];
+      
+      // Добавляем каждый сгенерированный блок в урок
+      for (const block of generatedBlocks) {
+        await lessonsApi.addBlock(selectedCourse.id, selectedLesson.id, block);
+      }
+
+      // Получаем обновленный урок с новыми блоками
+      const lessonResponse = await lessonsApi.getById(selectedCourse.id, selectedLesson.id);
+      setSelectedLesson(lessonResponse.data);
+
+      alert(`Успешно сгенерировано и добавлено ${generatedBlocks.length} блоков!`);
+    } catch (err) {
+      setError('Не удалось сгенерировать контент урока');
+      console.error('Error generating lesson content:', err);
+    } finally {
+      setIsGeneratingLessonContent(false);
+    }
+  };
+
   const prepareBlocksForApi = (blocks) => {
     // Сохраняем block_id для существующих блоков, чтобы бэкенд мог их обновить вместо пересоздания
     return blocks.map((block) => {
@@ -471,6 +509,32 @@ function Courses() {
     } catch (err) {
       setError('Не удалось сохранить блок');
       console.error('Error saving block:', err);
+    }
+  };
+
+  const handleDeleteBlock = async (blockId) => {
+    if (!selectedCourse || !selectedLesson || !blockId) return;
+    
+    if (!window.confirm('Вы уверены, что хотите удалить этот блок?')) {
+      return;
+    }
+    
+    try {
+      const response = await lessonsApi.deleteBlock(
+        selectedCourse.id,
+        selectedLesson.id,
+        blockId
+      );
+      setSelectedLesson(response.data);
+      // Если удаляемый блок был в режиме редактирования, сбрасываем состояние
+      if (editingBlockId === blockId) {
+        setEditingBlockId(null);
+        setEditingBlockData(null);
+      }
+      setError(null);
+    } catch (err) {
+      setError('Не удалось удалить блок');
+      console.error('Error deleting block:', err);
     }
   };
 
@@ -1353,6 +1417,39 @@ function Courses() {
                     )}
                   </div>
                 )}
+                {(!selectedLesson.blocks || selectedLesson.blocks.length === 0) && isCourseAuthor() && (
+                  <div style={{ marginTop: '24px', padding: '24px', border: '2px dashed #ccc', borderRadius: '8px', textAlign: 'center', background: '#f9f9f9' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '12px' }}>Содержимое урока</h3>
+                    <p style={{ color: '#666', marginBottom: '20px' }}>
+                      В этом уроке пока нет блоков. Вы можете сгенерировать контент автоматически или добавить блоки вручную.
+                    </p>
+                    <button
+                      onClick={handleGenerateLessonContent}
+                      disabled={isGeneratingLessonContent}
+                      className="courses-btn courses-btn-primary"
+                      style={{ marginRight: '12px' }}
+                    >
+                      {isGeneratingLessonContent ? 'Генерация...' : '✨ Сгенерировать контент'}
+                    </button>
+                    <div className="lesson-blocks-add-menu" style={{ marginTop: '20px', display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('theory')}>
+                        + Теория
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('code')}>
+                        + Код
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('note')}>
+                        + Заметка
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('single_choice')}>
+                        + Вопрос (один ответ)
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('multiple_choice')}>
+                        + Вопрос (несколько ответов)
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {selectedLesson.blocks && selectedLesson.blocks.length > 0 && (
                   <>
                     <h3>Содержимое урока</h3>
@@ -1673,6 +1770,13 @@ function Courses() {
                                     style={{ padding: '4px 12px', fontSize: '0.9em' }}
                                   >
                                     ✎ Редактировать
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteBlock(block.block_id)} 
+                                    className="courses-btn courses-btn-danger"
+                                    style={{ padding: '4px 12px', fontSize: '0.9em' }}
+                                  >
+                                    🗑 Удалить
                                   </button>
                                 </div>
                               )}

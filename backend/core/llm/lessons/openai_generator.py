@@ -22,7 +22,7 @@ class OpenAILessonsGenerator(BaseLessonsGenerator):
         self.model = model
         self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-    async def generate_blocks(self, context: LessonBlocksGenerateContext) -> list[LessonBlock]:
+    async def generate_blocks(self, context: LessonBlocksGenerateContext) -> GeneratedLessonContent:
         """Собрать урок в виде блоков."""
         response = await self.client.chat.completions.create(
             model=self.model,
@@ -30,14 +30,13 @@ class OpenAILessonsGenerator(BaseLessonsGenerator):
                 {"role": "system", "content": MISTRAL_LESSON_BLOCKS_PROMPT},
                 {"role": "user", "content": self._build_user_prompt(context)},
             ],
-            temperature=0.4,
+            response_format={'type': 'json_object'},
         )
 
         content = response.choices[0].message.content.strip('```json').strip('```').strip(' \n')
-        print(content)
         try:
             data = json.loads(content)
-            return [LessonBlock.model_validate(item) for item in data]
+            return GeneratedLessonContent.model_validate({"blocks": data})
         except pydantic.ValidationError as e:
             print("Validation error:", e)
             raise
@@ -46,20 +45,17 @@ class OpenAILessonsGenerator(BaseLessonsGenerator):
     def _build_user_prompt(context: LessonBlocksGenerateContext) -> str:
         sections: list[str] = [
             f"# Тема урока:\n{context.topic}",
-            f"# Конспект/материалы:\n{context.notes}",
         ]
 
+        if context.description:
+            sections.append(f"# Описание урока:\n{context.description}")
         if context.goal:
-            sections.insert(1, f"# Цель урока:\n{context.goal}")
-        if context.audience_level:
-            sections.append(f"# Уровень аудитории: {context.audience_level}")
+            sections.append(f"# Цель урока:\n{context.goal}")
+        if context.context:
+            sections.append(f"# Конспект/материалы:\n{context.context}")
         if context.focus_points:
             focus_block = "\n".join(f"- {point}" for point in context.focus_points)
             sections.append(f"# Обязательные акценты:\n{focus_block}")
-        if context.preferred_block_types:
-            sections.append(
-                "# Предпочтительные блоки:\n" + ", ".join(context.preferred_block_types)
-            )
 
         sections.append("# Выведи строго JSON, соответствующий схеме ответа.")
         return "\n\n".join(section for section in sections if section.strip())
@@ -79,9 +75,9 @@ if __name__ == "__main__":
         generator = await get_mistral_lessons_generator()
         context = LessonBlocksGenerateContext(
             topic="Работа с файлами в Python",
-            notes="Python предоставляет встроенные функции open/read/write.",
-            focus_points=["Пример чтения файла", "Пример записи"],
-            preferred_block_types=["theory", "code", "single_choice"],
+            description="Python предоставляет встроенные функции open/read/write.",
+            #focus_points=["Пример чтения файла", "Пример записи"],
+            #preferred_block_types=["theory", "code", "single_choice"],
         )
         lesson = await generator.generate_blocks(context)
 

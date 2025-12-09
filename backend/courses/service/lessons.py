@@ -487,6 +487,57 @@ async def update_block(
     )
 
 
+async def delete_block(
+    db: AsyncSession,
+    lesson_id: int,
+    block_id: UUID,
+    user_id: int
+) -> LessonResponse:
+    """Удалить блок из урока"""
+    lesson = await LessonDAO.get_by_id(db, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    
+    await ensure_course_access(db, lesson.course_id, user_id, require_author=True)
+    
+    block = await LessonBlockDAO.get_by_id(db, block_id)
+    if not block:
+        raise HTTPException(status_code=404, detail="Block not found")
+    
+    if block.lesson_id != lesson_id:
+        raise HTTPException(status_code=404, detail="Block does not belong to this lesson")
+    
+    # Удаляем блок
+    await LessonBlockDAO.delete(db, block_id)
+    
+    # Обновляем позиции оставшихся блоков
+    remaining_blocks = await LessonBlockDAO.get_all_by_lesson(db, lesson_id)
+    # Сортируем по позиции и перенумеровываем с 0
+    sorted_blocks = sorted(remaining_blocks, key=lambda b: b.position)
+    for index, remaining_block in enumerate(sorted_blocks):
+        await LessonBlockDAO.update_in_transaction(db, remaining_block.id, position=index)
+    
+    await db.commit()
+    
+    # Загружаем обновленный урок с блоками
+    updated_lesson = await load_lesson_with_blocks(db, lesson_id)
+    if not updated_lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found after deletion")
+    
+    blocks = convert_blocks_for_response(updated_lesson)
+    
+    return LessonResponse(
+        id=updated_lesson.id,
+        course_id=updated_lesson.course_id,
+        position=updated_lesson.position,
+        name=updated_lesson.name,
+        description=updated_lesson.description,
+        blocks=blocks,
+        created_at=updated_lesson.created_at,
+        updated_at=updated_lesson.updated_at
+    )
+
+
 async def check_question_answer(
     db: AsyncSession,
     lesson_id: int,

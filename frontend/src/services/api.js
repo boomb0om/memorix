@@ -203,8 +203,14 @@ export const lessonsApi = {
   // Добавить новый блок к уроку
   addBlock: (courseId, lessonId, blockData) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks`, blockData),
   
+  // Удалить блок из урока
+  deleteBlock: (courseId, lessonId, blockId) => api.delete(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}`),
+  
   // Проверить ответ на вопрос
   checkAnswer: (courseId, lessonId, blockId, answer) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}/check-answer`, { answer }),
+  
+  // Сгенерировать контент урока
+  generateContent: (courseId, lessonId, data) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/generate-content`, data || {}),
 };
 
 export default api;

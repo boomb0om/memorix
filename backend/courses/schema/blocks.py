@@ -1,6 +1,6 @@
 from typing import Literal, Union
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 # Базовый класс для всех блоков
