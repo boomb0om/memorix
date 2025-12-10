@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
 
 
@@ -8,7 +8,16 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(min_length=8, max_length=64)
+    password: str
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password_length(cls, v: str) -> str:
+        if len(v) <= 8:
+            raise ValueError('Пароль должен быть больше 8 символов')
+        if len(v) >= 128:
+            raise ValueError('Пароль должен быть меньше 128 символов')
+        return v
 
 
 class UserLogin(BaseModel):

@@ -17,7 +17,6 @@ class LessonUpdate(BaseModel):
     name: str | None = Field(default=None, description="Название урока", min_length=1, max_length=200)
     description: str | None = Field(default=None, description="Описание урока", max_length=1000)
     position: int | None = Field(default=None, description="Позиция урока", ge=0)
-    blocks: list[LessonBlock] | None = Field(default=None, description="Блоки урока")
 
 
 class LessonResponse(BaseModel):
@@ -47,3 +46,17 @@ class LessonListItem(BaseModel):
     class Config:
         from_attributes = True
 
+
+class GenerateLessonContentRequest(BaseModel):
+    """Схема запроса для генерации контента урока"""
+    context: str | None = Field(default=None, description="Конспект или материалы, на основе которых нужно создать урок")
+    goal: str | None = Field(default=None, description="Что студент должен уметь после урока", max_length=500)
+    focus_points: list[str] | None = Field(
+        default=None,
+        description="Ключевые аспекты, которые обязательно нужно раскрыть"
+    )
+
+
+class GenerateLessonContentResponse(BaseModel):
+    """Схема ответа с сгенерированным контентом урока"""
+    blocks: list[LessonBlock] = Field(description="Сгенерированные блоки урока")

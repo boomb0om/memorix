@@ -1,40 +1,144 @@
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
-from notes.dao.models import Note
+from .models import LessonBlock
 
 
-class NoteDAO:
+class LessonBlockDAO:
+    """DAO для работы с блоками уроков"""
 
     @classmethod
-    async def get_by_id(cls, session: AsyncSession, note_id: int) -> Note:
-        result = await session.execute(select(Note).where(Note.id == note_id))
+    async def get_by_id(cls, session: AsyncSession, block_id: UUID) -> LessonBlock | None:
+        """Получить блок по ID"""
+        result = await session.execute(
+            select(LessonBlock).where(LessonBlock.id == block_id)
+        )
         return result.scalar_one_or_none()
 
     @classmethod
-    async def get_all_by_user(cls, session: AsyncSession, user_id: int) -> list[Note]:
+    async def get_all_by_lesson(
+        cls,
+        session: AsyncSession,
+        lesson_id: int
+    ) -> list[LessonBlock]:
+        """Получить все блоки урока, отсортированные по позиции"""
         result = await session.execute(
-            select(Note).where(Note.user_id == user_id).order_by(Note.path)
+            select(LessonBlock)
+            .where(LessonBlock.lesson_id == lesson_id)
+            .order_by(LessonBlock.position)
         )
         return result.scalars().all()
 
     @classmethod
-    async def create(cls, session: AsyncSession, title: str, content: str, user_id: int, path: str) -> Note:
-        db_note = Note(title=title, content=content, user_id=user_id, path=path)
-        session.add(db_note)
-        await session.commit()
-        await session.refresh(db_note)
-        return db_note
+    async def get_by_position(
+        cls,
+        session: AsyncSession,
+        lesson_id: int,
+        position: int
+    ) -> LessonBlock | None:
+        """Получить блок по позиции в уроке"""
+        result = await session.execute(
+            select(LessonBlock)
+            .where(LessonBlock.lesson_id == lesson_id, LessonBlock.position == position)
+        )
+        return result.scalar_one_or_none()
 
     @classmethod
-    async def update(cls, session: AsyncSession, note_id: int, **kwargs) -> Note:
-        stmt = update(Note).where(Note.id == note_id).values(**kwargs)
-        await session.execute(stmt)
-        await session.commit()
-        return await cls.get_by_id(session, note_id)
+    async def create(
+        cls,
+        session: AsyncSession,
+        lesson_id: int,
+        position: int,
+        block_type: str,
+        data: dict
+    ) -> LessonBlock:
+        """Создать блок"""
+        db_block = LessonBlock(
+            lesson_id=lesson_id,
+            position=position,
+            type=block_type,
+            data=data
+        )
+        session.add(db_block)
+        await session.flush()
+        await session.refresh(db_block)
+        return db_block
 
     @classmethod
-    async def delete(cls, session: AsyncSession, note_id: int) -> bool:
-        stmt = delete(Note).where(Note.id == note_id)
+    async def create_bulk(
+        cls,
+        session: AsyncSession,
+        lesson_id: int,
+        blocks: list[dict]  # Список словарей с ключами: position, type, data
+    ) -> list[LessonBlock]:
+        """Создать несколько блоков за раз"""
+        db_blocks = [
+            LessonBlock(
+                lesson_id=lesson_id,
+                position=block["position"],
+                type=block["type"],
+                data=block["data"]
+            )
+            for block in blocks
+        ]
+        session.add_all(db_blocks)
+        await session.flush()
+        for block in db_blocks:
+            await session.refresh(block)
+        return db_blocks
+
+    @classmethod
+    async def update(
+        cls,
+        session: AsyncSession,
+        block_id: UUID,
+        **kwargs
+    ) -> LessonBlock | None:
+        """Обновить блок"""
+        stmt = update(LessonBlock).where(LessonBlock.id == block_id).values(**kwargs)
         await session.execute(stmt)
-        await session.commit()
+        await session.flush()
+        return await cls.get_by_id(session, block_id)
+
+    @classmethod
+    async def update_in_transaction(
+        cls,
+        session: AsyncSession,
+        block_id: UUID,
+        **kwargs
+    ) -> None:
+        """Обновить блок в рамках существующей транзакции"""
+        stmt = update(LessonBlock).where(LessonBlock.id == block_id).values(**kwargs)
+        await session.execute(stmt)
+
+    @classmethod
+    async def delete(cls, session: AsyncSession, block_id: UUID) -> bool:
+        """Удалить блок"""
+        stmt = delete(LessonBlock).where(LessonBlock.id == block_id)
+        await session.execute(stmt)
+        await session.flush()
         return True
+
+    @classmethod
+    async def delete_all_by_lesson(cls, session: AsyncSession, lesson_id: int) -> bool:
+        """Удалить все блоки урока"""
+        stmt = delete(LessonBlock).where(LessonBlock.lesson_id == lesson_id)
+        await session.execute(stmt)
+        await session.flush()
+        return True
+
+    @classmethod
+    async def get_next_position(
+        cls,
+        session: AsyncSession,
+        lesson_id: int
+    ) -> int:
+        """Получить следующую доступную позицию для блока"""
+        result = await session.execute(
+            select(LessonBlock.position)
+            .where(LessonBlock.lesson_id == lesson_id)
+            .order_by(LessonBlock.position.desc())
+            .limit(1)
+        )
+        max_position = result.scalar_one_or_none()
+        return (max_position + 1) if max_position is not None else 0

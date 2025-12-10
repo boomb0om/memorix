@@ -177,19 +177,40 @@ export const coursesApi = {
 // API для работы с уроками
 export const lessonsApi = {
   // Получить все уроки курса
-  getByCourse: (courseId) => api.get(`/api/lessons/course/${courseId}`),
+  getByCourse: (courseId) => api.get(`/api/courses/${courseId}/lessons`),
   
   // Получить урок по ID
-  getById: (id) => api.get(`/api/lessons/${id}`),
+  getById: (courseId, lessonId) => api.get(`/api/courses/${courseId}/lessons/${lessonId}`),
   
   // Создать новый урок
-  create: (lessonData) => api.post('/api/lessons', lessonData),
+  create: (courseId, lessonData) => api.post(`/api/courses/${courseId}/lessons`, lessonData),
   
   // Обновить урок
-  update: (id, lessonData) => api.patch(`/api/lessons/${id}`, lessonData),
+  update: (courseId, lessonId, lessonData) => api.patch(`/api/courses/${courseId}/lessons/${lessonId}`, lessonData),
   
   // Удалить урок
-  delete: (id) => api.delete(`/api/lessons/${id}`),
+  delete: (courseId, lessonId) => api.delete(`/api/courses/${courseId}/lessons/${lessonId}`),
+  
+  // Изменить позицию урока
+  reorder: (courseId, lessonId, newPosition) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/reorder`, { new_position: newPosition }),
+  
+  // Обновить отдельный блок урока
+  updateBlock: (courseId, lessonId, blockId, blockData) => api.patch(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}`, blockData),
+  
+  // Изменить позицию блока в уроке
+  reorderBlock: (courseId, lessonId, blockId, newPosition) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}/reorder`, { new_position: newPosition }),
+  
+  // Добавить новый блок к уроку
+  addBlock: (courseId, lessonId, blockData) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks`, blockData),
+  
+  // Удалить блок из урока
+  deleteBlock: (courseId, lessonId, blockId) => api.delete(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}`),
+  
+  // Проверить ответ на вопрос
+  checkAnswer: (courseId, lessonId, blockId, answer) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}/check-answer`, { answer }),
+  
+  // Сгенерировать контент урока
+  generateContent: (courseId, lessonId, data) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/generate-content`, data || {}),
 };
 
 export default api;

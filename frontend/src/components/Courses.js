@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { useNavigate, useParams } from 'react-router-dom';
 import { coursesApi, lessonsApi } from '../services/api';
 import Sidebar from './Sidebar';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useAuth } from '../contexts/AuthContext';
 
 function Courses() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { courseId, lessonId } = useParams();
   const [myCourses, setMyCourses] = useState([]);
   const [communityCourses, setCommunityCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -17,12 +23,19 @@ function Courses() {
   const [editedLessonDescription, setEditedLessonDescription] = useState('');
   const [editedLessonBlocks, setEditedLessonBlocks] = useState([]);
   const [editingBlockIndex, setEditingBlockIndex] = useState(null);
+  const [editingBlockId, setEditingBlockId] = useState(null); // ID редактируемого блока в режиме просмотра
+  const [editingBlockData, setEditingBlockData] = useState(null); // Данные редактируемого блока
+  const [editingLessonName, setEditingLessonName] = useState(false); // Inline редактирование названия урока
+  const [editingLessonDescription, setEditingLessonDescription] = useState(false); // Inline редактирование описания урока
+  const [tempLessonName, setTempLessonName] = useState(''); // Временное значение названия урока
+  const [tempLessonDescription, setTempLessonDescription] = useState(''); // Временное значение описания урока
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [isCreatingLesson, setIsCreatingLesson] = useState(false);
   const [isGeneratingLessons, setIsGeneratingLessons] = useState(false);
   const [showGenerateLessonsModal, setShowGenerateLessonsModal] = useState(false);
+  const [isGeneratingLessonContent, setIsGeneratingLessonContent] = useState(false);
   const [generateFormData, setGenerateFormData] = useState({
     goal: '',
     start_knowledge: '',
@@ -33,20 +46,58 @@ function Courses() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [draggedLessonId, setDraggedLessonId] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedBlockId, setDraggedBlockId] = useState(null);
+  const [dragOverBlockIndex, setDragOverBlockIndex] = useState(null);
+  const [isDraggingBlock, setIsDraggingBlock] = useState(false);
+  const [questionAnswers, setQuestionAnswers] = useState({}); // { blockId: answer } для хранения выбранных ответов
+  const [checkedQuestions, setCheckedQuestions] = useState({}); // { blockId: { is_correct, correct_answer/answers, explanation } } для проверенных вопросов
   const { isSidebarOpen } = useSidebar();
 
+  // Загрузка списка курсов при монтировании
   useEffect(() => {
     loadCourses();
   }, []);
 
+  // Загрузка курса и урока из URL при монтировании или изменении параметров
   useEffect(() => {
-    if (selectedCourse) {
-      loadLessons(selectedCourse.id);
-    } else {
-      setLessons([]);
-      setSelectedLesson(null);
-    }
-  }, [selectedCourse]);
+    const loadFromUrl = async () => {
+      if (courseId) {
+        try {
+          const courseIdNum = parseInt(courseId);
+          const response = await coursesApi.getById(courseIdNum);
+          setSelectedCourse(response.data);
+          await loadLessons(courseIdNum);
+          
+          if (lessonId) {
+            const lessonIdNum = parseInt(lessonId);
+            const lessonResponse = await lessonsApi.getById(courseIdNum, lessonIdNum);
+            setSelectedLesson(lessonResponse.data);
+            // Сбрасываем состояния ответов при загрузке нового урока
+            setQuestionAnswers({});
+            setCheckedQuestions({});
+          } else {
+            setSelectedLesson(null);
+            setQuestionAnswers({});
+            setCheckedQuestions({});
+          }
+        } catch (err) {
+          setError('Не удалось загрузить курс или урок');
+          console.error('Error loading from URL:', err);
+          navigate('/courses');
+        }
+      } else {
+        setSelectedCourse(null);
+        setLessons([]);
+        setSelectedLesson(null);
+      }
+    };
+    
+    loadFromUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId, lessonId]);
 
   const loadCourses = async (queryText = '') => {
     const normalizedQuery = queryText.trim();
@@ -86,7 +137,10 @@ function Courses() {
   const loadLessons = async (courseId) => {
     try {
       const response = await lessonsApi.getByCourse(courseId);
-      setLessons(response.data || []);
+      const lessonsList = response.data || [];
+      // Сортируем уроки по позиции
+      const sortedLessons = [...lessonsList].sort((a, b) => a.position - b.position);
+      setLessons(sortedLessons);
       setError(null);
     } catch (err) {
       setError('Не удалось загрузить уроки');
@@ -94,13 +148,14 @@ function Courses() {
     }
   };
 
-  const handleSelectCourse = async (courseId) => {
+  const handleSelectCourse = async (courseIdNum) => {
     try {
-      const response = await coursesApi.getById(courseId);
+      const response = await coursesApi.getById(courseIdNum);
       setSelectedCourse(response.data);
       setIsEditingCourse(false);
       setIsCreatingCourse(false);
       setSelectedLesson(null);
+      navigate(`/courses/${courseIdNum}`);
     } catch (err) {
       setError('Не удалось загрузить курс');
       console.error('Error loading course:', err);
@@ -115,14 +170,17 @@ function Courses() {
     setIsEditingLesson(false);
     setIsCreatingCourse(false);
     setIsCreatingLesson(false);
+    navigate('/courses');
   };
 
-  const handleSelectLesson = async (lessonId) => {
+  const handleSelectLesson = async (lessonIdNum) => {
+    if (!selectedCourse) return;
     try {
-      const response = await lessonsApi.getById(lessonId);
+      const response = await lessonsApi.getById(selectedCourse.id, lessonIdNum);
       setSelectedLesson(response.data);
       setIsEditingLesson(false);
       setIsCreatingLesson(false);
+      navigate(`/courses/${selectedCourse.id}/lessons/${lessonIdNum}`);
     } catch (err) {
       setError('Не удалось загрузить урок');
       console.error('Error loading lesson:', err);
@@ -155,14 +213,56 @@ function Courses() {
     }
   };
 
-  const handleEditLesson = () => {
-    if (selectedLesson) {
-      setEditedLessonName(selectedLesson.name);
-      setEditedLessonDescription(selectedLesson.description || '');
-      setEditedLessonBlocks(selectedLesson.blocks || []);
-      setEditingBlockIndex(null);
-      setIsEditingLesson(true);
+  const handleStartEditLessonName = () => {
+    if (!isCourseAuthor()) return;
+    setTempLessonName(selectedLesson.name);
+    setEditingLessonName(true);
+  };
+
+  const handleSaveLessonName = async () => {
+    if (!selectedCourse || !selectedLesson) return;
+    try {
+      const response = await lessonsApi.update(selectedCourse.id, selectedLesson.id, {
+        name: tempLessonName,
+      });
+      setSelectedLesson(response.data);
+      setEditingLessonName(false);
+      setError(null);
+    } catch (err) {
+      setError('Не удалось сохранить название урока');
+      console.error('Error saving lesson name:', err);
     }
+  };
+
+  const handleCancelEditLessonName = () => {
+    setEditingLessonName(false);
+    setTempLessonName('');
+  };
+
+  const handleStartEditLessonDescription = () => {
+    if (!isCourseAuthor()) return;
+    setTempLessonDescription(selectedLesson.description || '');
+    setEditingLessonDescription(true);
+  };
+
+  const handleSaveLessonDescription = async () => {
+    if (!selectedCourse || !selectedLesson) return;
+    try {
+      const response = await lessonsApi.update(selectedCourse.id, selectedLesson.id, {
+        description: tempLessonDescription || null,
+      });
+      setSelectedLesson(response.data);
+      setEditingLessonDescription(false);
+      setError(null);
+    } catch (err) {
+      setError('Не удалось сохранить описание урока');
+      console.error('Error saving lesson description:', err);
+    }
+  };
+
+  const handleCancelEditLessonDescription = () => {
+    setEditingLessonDescription(false);
+    setTempLessonDescription('');
   };
 
   const handleSaveCourse = async () => {
@@ -175,6 +275,7 @@ function Courses() {
         setSelectedCourse(response.data);
         await loadCourses();
         setIsCreatingCourse(false);
+        navigate(`/courses/${response.data.id}`);
       } else if (selectedCourse) {
         const response = await coursesApi.update(selectedCourse.id, {
           name: editedCourseName,
@@ -283,28 +384,74 @@ function Courses() {
     }
   };
 
-  const handleSaveLesson = async () => {
+  const handleGenerateLessonContent = async () => {
+    if (!selectedCourse || !selectedLesson) {
+      setError('Урок не выбран');
+      return;
+    }
+
     try {
-      if (isCreatingLesson) {
-        const response = await lessonsApi.create({
-          course_id: selectedCourse.id,
-          position: lessons.length,
-          name: editedLessonName,
-          description: editedLessonDescription || null,
-          blocks: editedLessonBlocks,
-        });
-        setSelectedLesson(response.data);
-        await loadLessons(selectedCourse.id);
-        setIsCreatingLesson(false);
-      } else if (selectedLesson) {
-        const response = await lessonsApi.update(selectedLesson.id, {
-          name: editedLessonName,
-          description: editedLessonDescription || null,
-          blocks: editedLessonBlocks,
-        });
-        setSelectedLesson(response.data);
-        await loadLessons(selectedCourse.id);
+      setIsGeneratingLessonContent(true);
+      setError(null);
+
+      // Вызываем API для генерации контента
+      const response = await lessonsApi.generateContent(selectedCourse.id, selectedLesson.id, {
+        context: null,
+        goal: null,
+        focus_points: null
+      });
+
+      const generatedBlocks = response.data.blocks || [];
+      
+      // Добавляем каждый сгенерированный блок в урок
+      for (const block of generatedBlocks) {
+        await lessonsApi.addBlock(selectedCourse.id, selectedLesson.id, block);
       }
+
+      // Получаем обновленный урок с новыми блоками
+      const lessonResponse = await lessonsApi.getById(selectedCourse.id, selectedLesson.id);
+      setSelectedLesson(lessonResponse.data);
+
+      alert(`Успешно сгенерировано и добавлено ${generatedBlocks.length} блоков!`);
+    } catch (err) {
+      setError('Не удалось сгенерировать контент урока');
+      console.error('Error generating lesson content:', err);
+    } finally {
+      setIsGeneratingLessonContent(false);
+    }
+  };
+
+  const prepareBlocksForApi = (blocks) => {
+    // Сохраняем block_id для существующих блоков, чтобы бэкенд мог их обновить вместо пересоздания
+    return blocks.map((block) => {
+      const { block_id, ...blockData } = block;
+      // Если есть block_id, сохраняем его для обновления существующего блока
+      if (block_id) {
+        return { ...blockData, block_id };
+      }
+      // Для новых блоков block_id не нужен, бэкенд создаст новый
+      return blockData;
+    });
+  };
+
+  const handleSaveLesson = async () => {
+    if (!selectedCourse) return;
+    try {
+      // Подготавливаем блоки для отправки (убираем block_id)
+      const blocksToSend = prepareBlocksForApi(editedLessonBlocks);
+      
+      // Создаем новый урок с блоками
+      const response = await lessonsApi.create(selectedCourse.id, {
+        course_id: selectedCourse.id,
+        position: lessons.length,
+        name: editedLessonName,
+        description: editedLessonDescription || null,
+        blocks: blocksToSend,
+      });
+      setSelectedLesson(response.data);
+      await loadLessons(selectedCourse.id);
+      setIsCreatingLesson(false);
+      navigate(`/courses/${selectedCourse.id}/lessons/${response.data.id}`);
       setIsEditingLesson(false);
       setEditingBlockIndex(null);
       setError(null);
@@ -330,6 +477,261 @@ function Courses() {
     setEditingBlockIndex(null);
   };
 
+  // Функции для работы с отдельными блоками в режиме просмотра
+  const handleEditBlock = (block) => {
+    if (!block.block_id) {
+      setError('Блок еще не сохранен. Сохраните урок, чтобы редактировать блоки отдельно.');
+      return;
+    }
+    setEditingBlockId(block.block_id);
+    setEditingBlockData({ ...block });
+  };
+
+  const handleCancelBlockEdit = () => {
+    setEditingBlockId(null);
+    setEditingBlockData(null);
+  };
+
+  const handleSaveBlock = async () => {
+    if (!selectedCourse || !selectedLesson || !editingBlockId || !editingBlockData) return;
+    
+    try {
+      const response = await lessonsApi.updateBlock(
+        selectedCourse.id,
+        selectedLesson.id,
+        editingBlockId,
+        editingBlockData
+      );
+      setSelectedLesson(response.data);
+      setEditingBlockId(null);
+      setEditingBlockData(null);
+      setError(null);
+    } catch (err) {
+      setError('Не удалось сохранить блок');
+      console.error('Error saving block:', err);
+    }
+  };
+
+  const handleDeleteBlock = async (blockId) => {
+    if (!selectedCourse || !selectedLesson || !blockId) return;
+    
+    if (!window.confirm('Вы уверены, что хотите удалить этот блок?')) {
+      return;
+    }
+    
+    try {
+      const response = await lessonsApi.deleteBlock(
+        selectedCourse.id,
+        selectedLesson.id,
+        blockId
+      );
+      setSelectedLesson(response.data);
+      // Если удаляемый блок был в режиме редактирования, сбрасываем состояние
+      if (editingBlockId === blockId) {
+        setEditingBlockId(null);
+        setEditingBlockData(null);
+      }
+      setError(null);
+    } catch (err) {
+      setError('Не удалось удалить блок');
+      console.error('Error deleting block:', err);
+    }
+  };
+
+  const handleUpdateBlockData = (field, value) => {
+    setEditingBlockData({ ...editingBlockData, [field]: value });
+  };
+
+  const handleUpdateBlockOptions = (optIndex, value) => {
+    const newOptions = [...(editingBlockData.options || [])];
+    newOptions[optIndex] = value;
+    setEditingBlockData({ ...editingBlockData, options: newOptions });
+  };
+
+  const handleAddBlockOption = () => {
+    const newOptions = [...(editingBlockData.options || []), ''];
+    setEditingBlockData({ ...editingBlockData, options: newOptions });
+  };
+
+  const handleAddBlock = async (type) => {
+    if (!selectedCourse || !selectedLesson) return;
+    
+    let newBlock;
+    switch (type) {
+      case 'theory':
+        newBlock = { type: 'theory', title: '', content: '' };
+        break;
+      case 'single_choice':
+        newBlock = { type: 'single_choice', question: '', options: ['', ''], correct_answer: 0, explanation: '' };
+        break;
+      case 'multiple_choice':
+        newBlock = { type: 'multiple_choice', question: '', options: ['', ''], correct_answers: [0], explanation: '' };
+        break;
+      case 'code':
+        newBlock = { type: 'code', title: '', code: '', language: 'python', explanation: '' };
+        break;
+      case 'note':
+        newBlock = { type: 'note', note_type: 'info', content: '' };
+        break;
+      default:
+        return;
+    }
+    
+    try {
+      const response = await lessonsApi.addBlock(selectedCourse.id, selectedLesson.id, newBlock);
+      setSelectedLesson(response.data);
+      // Автоматически открываем редактирование нового блока
+      const newBlockId = response.data.blocks[response.data.blocks.length - 1]?.block_id;
+      if (newBlockId) {
+        setEditingBlockId(newBlockId);
+        setEditingBlockData({ ...newBlock, block_id: newBlockId });
+      }
+      setError(null);
+    } catch (err) {
+      setError('Не удалось добавить блок');
+      console.error('Error adding block:', err);
+    }
+  };
+
+  const handleRemoveBlockOption = (optIndex) => {
+    const newOptions = (editingBlockData.options || []).filter((_, i) => i !== optIndex);
+    let updatedData = { ...editingBlockData, options: newOptions };
+    
+    // Обновляем correct_answer/correct_answers в зависимости от типа блока
+    if (editingBlockData.type === 'single_choice') {
+      if (editingBlockData.correct_answer === optIndex) {
+        updatedData.correct_answer = 0;
+      } else if (editingBlockData.correct_answer > optIndex) {
+        updatedData.correct_answer = editingBlockData.correct_answer - 1;
+      }
+    } else if (editingBlockData.type === 'multiple_choice') {
+      updatedData.correct_answers = (editingBlockData.correct_answers || [])
+        .filter(i => i !== optIndex)
+        .map(i => i > optIndex ? i - 1 : i);
+    }
+    
+    setEditingBlockData(updatedData);
+  };
+
+  // Drag and drop для блоков
+  const handleDragStartBlock = (e, blockId) => {
+    if (!isCourseAuthor() || !blockId) return;
+    // Не позволяем перетаскивать блок, который сейчас редактируется
+    if (editingBlockId === blockId) {
+      e.preventDefault();
+      return;
+    }
+    setIsDraggingBlock(true);
+    setDraggedBlockId(blockId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target);
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEndBlock = (e) => {
+    e.target.style.opacity = '1';
+    setDraggedBlockId(null);
+    setDragOverBlockIndex(null);
+    setTimeout(() => setIsDraggingBlock(false), 100);
+  };
+
+  const handleDragOverBlock = (e, index) => {
+    if (!isCourseAuthor() || draggedBlockId === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const draggedIndex = selectedLesson.blocks.findIndex(b => b.block_id === draggedBlockId);
+    if (draggedIndex === -1) return;
+    
+    // Определяем, куда вставлять - выше или ниже элемента
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const midpoint = rect.height / 2;
+    
+    // Если перетаскиваем вниз, вставляем после элемента, если вверх - перед
+    if (draggedIndex < index) {
+      // Перетаскиваем вниз - вставляем после текущего элемента
+      setDragOverBlockIndex(index);
+    } else if (draggedIndex > index) {
+      // Перетаскиваем вверх - вставляем перед текущим элементом
+      setDragOverBlockIndex(index);
+    } else {
+      setDragOverBlockIndex(null);
+    }
+  };
+
+  const handleDragLeaveBlock = () => {
+    setDragOverBlockIndex(null);
+  };
+
+  const handleDropBlock = async (e, targetIndex) => {
+    if (!isCourseAuthor() || draggedBlockId === null || !selectedCourse || !selectedLesson) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const draggedBlock = selectedLesson.blocks.find(b => b.block_id === draggedBlockId);
+    if (!draggedBlock) return;
+
+    const currentIndex = selectedLesson.blocks.findIndex(b => b.block_id === draggedBlockId);
+    if (currentIndex === targetIndex) {
+      setDraggedBlockId(null);
+      setDragOverBlockIndex(null);
+      return;
+    }
+
+    try {
+      // Обновляем позиции локально для мгновенного отклика
+      const sortedBlocks = [...selectedLesson.blocks];
+      const [removed] = sortedBlocks.splice(currentIndex, 1);
+      
+      // Вычисляем правильную позицию для вставки
+      // Если перетаскиваем вниз (currentIndex < targetIndex), 
+      // после удаления targetIndex уменьшается на 1, поэтому используем targetIndex
+      // Если перетаскиваем вверх (currentIndex > targetIndex), 
+      // targetIndex не меняется, используем targetIndex
+      let insertIndex;
+      if (currentIndex < targetIndex) {
+        // Перетаскиваем вниз - вставляем после целевого элемента
+        insertIndex = targetIndex; // После удаления это будет targetIndex - 1, но мы хотим вставить после, поэтому targetIndex
+      } else {
+        // Перетаскиваем вверх - вставляем на позицию целевого элемента
+        insertIndex = targetIndex;
+      }
+      
+      sortedBlocks.splice(insertIndex, 0, removed);
+      
+      // Обновляем позиции в отсортированном порядке
+      const updatedBlocks = sortedBlocks.map((block, index) => ({
+        ...block,
+        position: index
+      }));
+      
+      // Находим новую позицию перетащенного блока в отсортированном массиве
+      const newPosition = updatedBlocks.findIndex(b => b.block_id === draggedBlockId);
+      
+      setSelectedLesson({ ...selectedLesson, blocks: updatedBlocks });
+
+      // Обновляем позицию перетащенного блока на сервере
+      await lessonsApi.reorderBlock(selectedCourse.id, selectedLesson.id, draggedBlockId, newPosition);
+      
+      // Перезагружаем урок для синхронизации с сервером
+      const lessonResponse = await lessonsApi.getById(selectedCourse.id, selectedLesson.id);
+      setSelectedLesson(lessonResponse.data);
+      
+      setError(null);
+    } catch (err) {
+      // В случае ошибки перезагружаем урок
+      const lessonResponse = await lessonsApi.getById(selectedCourse.id, selectedLesson.id);
+      setSelectedLesson(lessonResponse.data);
+      setError('Не удалось изменить позицию блока');
+      console.error('Error reordering block:', err);
+    } finally {
+      setDraggedBlockId(null);
+      setDragOverBlockIndex(null);
+    }
+  };
+
   const handleDeleteCourse = async () => {
     if (selectedCourse && window.confirm('Вы уверены, что хотите удалить этот курс?')) {
       try {
@@ -345,11 +747,12 @@ function Courses() {
   };
 
   const handleDeleteLesson = async () => {
-    if (selectedLesson && window.confirm('Вы уверены, что хотите удалить этот урок?')) {
+    if (selectedLesson && selectedCourse && window.confirm('Вы уверены, что хотите удалить этот урок?')) {
       try {
-        await lessonsApi.delete(selectedLesson.id);
+        await lessonsApi.delete(selectedCourse.id, selectedLesson.id);
         setSelectedLesson(null);
         await loadLessons(selectedCourse.id);
+        navigate(`/courses/${selectedCourse.id}`);
         setError(null);
       } catch (err) {
         setError('Не удалось удалить урок');
@@ -443,6 +846,170 @@ function Courses() {
     });
   };
 
+  // Проверка, является ли текущий пользователь автором курса
+  const isCourseAuthor = () => {
+    return selectedCourse && user && selectedCourse.author_id === user.id;
+  };
+
+  // Обработчик выбора ответа для single_choice
+  const handleSingleChoiceSelect = (blockId, answerIndex) => {
+    setQuestionAnswers(prev => ({
+      ...prev,
+      [blockId]: answerIndex
+    }));
+  };
+
+  // Обработчик выбора ответа для multiple_choice
+  const handleMultipleChoiceToggle = (blockId, answerIndex) => {
+    setQuestionAnswers(prev => {
+      const currentAnswers = prev[blockId] || [];
+      const newAnswers = currentAnswers.includes(answerIndex)
+        ? currentAnswers.filter(a => a !== answerIndex)
+        : [...currentAnswers, answerIndex];
+      return {
+        ...prev,
+        [blockId]: newAnswers
+      };
+    });
+  };
+
+  // Обработчик проверки ответа
+  const handleCheckAnswer = async (blockId) => {
+    if (!selectedCourse || !selectedLesson) return;
+    
+    const userAnswer = questionAnswers[blockId];
+    if (userAnswer === undefined || (Array.isArray(userAnswer) && userAnswer.length === 0)) {
+      alert('Пожалуйста, выберите ответ');
+      return;
+    }
+
+    try {
+      const response = await lessonsApi.checkAnswer(
+        selectedCourse.id,
+        selectedLesson.id,
+        blockId,
+        userAnswer
+      );
+      
+      const result = response.data;
+      setCheckedQuestions(prev => ({
+        ...prev,
+        [blockId]: result
+      }));
+    } catch (error) {
+      console.error('Error checking answer:', error);
+      alert('Ошибка при проверке ответа');
+    }
+  };
+
+  // Обработчики для drag and drop
+  const handleDragStart = (e, lessonId) => {
+    if (!isCourseAuthor()) return;
+    setIsDragging(true);
+    setDraggedLessonId(lessonId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target);
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '1';
+    setDraggedLessonId(null);
+    setDragOverIndex(null);
+    // Небольшая задержка, чтобы onClick не сработал после dragEnd
+    setTimeout(() => setIsDragging(false), 100);
+  };
+
+  const handleDragOver = (e, index) => {
+    if (!isCourseAuthor() || draggedLessonId === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const draggedIndex = lessons.findIndex(l => l.id === draggedLessonId);
+    if (draggedIndex === -1) return;
+    
+    // Определяем, куда вставлять - выше или ниже элемента
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const midpoint = rect.height / 2;
+    
+    // Если перетаскиваем вниз, вставляем после элемента, если вверх - перед
+    if (draggedIndex < index) {
+      // Перетаскиваем вниз - вставляем после текущего элемента
+      setDragOverIndex(index);
+    } else if (draggedIndex > index) {
+      // Перетаскиваем вверх - вставляем перед текущим элементом
+      setDragOverIndex(index);
+    } else {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = async (e, targetIndex) => {
+    if (!isCourseAuthor() || draggedLessonId === null) return;
+    e.preventDefault();
+    
+    const draggedLesson = lessons.find(l => l.id === draggedLessonId);
+    if (!draggedLesson) return;
+
+    const currentIndex = lessons.findIndex(l => l.id === draggedLessonId);
+    if (currentIndex === targetIndex) {
+      setDraggedLessonId(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    try {
+      // Обновляем позиции локально для мгновенного отклика
+      const sortedLessons = [...lessons];
+      const [removed] = sortedLessons.splice(currentIndex, 1);
+      
+      // Вычисляем правильную позицию для вставки
+      // Если перетаскиваем вниз (currentIndex < targetIndex), 
+      // после удаления targetIndex уменьшается на 1, поэтому используем targetIndex
+      // Если перетаскиваем вверх (currentIndex > targetIndex), 
+      // targetIndex не меняется, используем targetIndex
+      let insertIndex;
+      if (currentIndex < targetIndex) {
+        // Перетаскиваем вниз - вставляем после целевого элемента
+        insertIndex = targetIndex; // После удаления это будет targetIndex - 1, но мы хотим вставить после, поэтому targetIndex
+      } else {
+        // Перетаскиваем вверх - вставляем на позицию целевого элемента
+        insertIndex = targetIndex;
+      }
+      
+      sortedLessons.splice(insertIndex, 0, removed);
+      
+      // Обновляем позиции в отсортированном порядке
+      const updatedLessons = sortedLessons.map((lesson, index) => ({
+        ...lesson,
+        position: index
+      }));
+      
+      setLessons(updatedLessons);
+
+      // Обновляем позицию перетащенного урока на сервере
+      await lessonsApi.reorder(selectedCourse.id, draggedLessonId, insertIndex);
+      
+      // Перезагружаем уроки для синхронизации с сервером
+      await loadLessons(selectedCourse.id);
+      
+      setError(null);
+    } catch (err) {
+      // В случае ошибки перезагружаем уроки
+      await loadLessons(selectedCourse.id);
+      setError('Не удалось изменить позицию урока');
+      console.error('Error reordering lesson:', err);
+    } finally {
+      setDraggedLessonId(null);
+      setDragOverIndex(null);
+    }
+  };
+
   return (
     <>
       <Sidebar />
@@ -460,29 +1027,69 @@ function Courses() {
               </button>
               <h2>{selectedCourse?.name}</h2>
             </div>
-            <button onClick={handleCreateNewLesson} className="courses-create-btn">
-              + Создать урок
-            </button>
+            {isCourseAuthor() && (
+              <button onClick={handleCreateNewLesson} className="courses-create-btn">
+                + Создать урок
+              </button>
+            )}
           </div>
           
           {lessons.length === 0 && (
             <div className="courses-empty">
               <p>В этом курсе пока нет уроков</p>
-              <button onClick={handleCreateNewLesson} className="courses-create-btn-large">
-                Создать первый урок
-              </button>
+              {isCourseAuthor() && (
+                <button onClick={handleCreateNewLesson} className="courses-create-btn-large">
+                  Создать первый урок
+                </button>
+              )}
             </div>
           )}
           
-          {lessons.map(lesson => (
+          {lessons.map((lesson, index) => (
             <div
               key={lesson.id}
-              className={`courses-item ${selectedLesson?.id === lesson.id ? 'courses-item-active' : ''}`}
-              onClick={() => handleSelectLesson(lesson.id)}
+              className={`courses-item ${selectedLesson?.id === lesson.id ? 'courses-item-active' : ''} ${dragOverIndex === index ? 'drag-over' : ''}`}
+              onClick={() => {
+                if (!isDragging) {
+                  handleSelectLesson(lesson.id);
+                }
+              }}
+              draggable={isCourseAuthor()}
+              onDragStart={(e) => handleDragStart(e, lesson.id)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              style={{
+                cursor: isCourseAuthor() ? 'grab' : 'pointer',
+                opacity: draggedLessonId === lesson.id ? 0.5 : 1
+              }}
             >
-              <div className="courses-item-title">{lesson.name}</div>
+              {isCourseAuthor() && (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    left: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '18px',
+                    color: '#666',
+                    userSelect: 'none',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  ⋮⋮
+                </div>
+              )}
+              <div className="courses-item-title" style={{ marginLeft: isCourseAuthor() ? '24px' : '0' }}>
+                {lesson.name}
+              </div>
               <div className="courses-item-description">
-                {lesson.description || 'Без описания'}
+                {lesson.description ? (
+                  <ReactMarkdown>{lesson.description}</ReactMarkdown>
+                ) : (
+                  <span>Без описания</span>
+                )}
               </div>
               <div className="courses-item-meta">
                 Позиция: {lesson.position + 1} • Создан: {formatDate(lesson.created_at)}
@@ -565,9 +1172,13 @@ function Courses() {
                           <span>{formatDate(course.created_at) || '—'}</span>
                         </div>
                         <h3 className="course-card-title">{course.name}</h3>
-                        <p className="course-card-description">
-                          {course.description || 'Без описания'}
-                        </p>
+                        <div className="course-card-description">
+                          {course.description ? (
+                            <ReactMarkdown>{course.description}</ReactMarkdown>
+                          ) : (
+                            <p>Без описания</p>
+                          )}
+                        </div>
                         <div className="course-card-footer">
                           <button
                             className="courses-btn courses-btn-secondary"
@@ -611,9 +1222,13 @@ function Courses() {
                           <span>{formatDate(course.created_at) || '—'}</span>
                         </div>
                         <h3 className="course-card-title">{course.name}</h3>
-                        <p className="course-card-description">
-                          {course.description || 'Без описания'}
-                        </p>
+                        <div className="course-card-description">
+                          {course.description ? (
+                            <ReactMarkdown>{course.description}</ReactMarkdown>
+                          ) : (
+                            <p>Без описания</p>
+                          )}
+                        </div>
                         <div className="course-card-footer">
                           <button
                             className="courses-btn courses-btn-secondary"
@@ -695,7 +1310,42 @@ function Courses() {
             <div className="courses-view">
               <div className="courses-view-header">
                 <div>
-                  <h1>{selectedLesson.name}</h1>
+                  {editingLessonName ? (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={tempLessonName}
+                        onChange={(e) => setTempLessonName(e.target.value)}
+                        className="courses-input"
+                        style={{ fontSize: '2em', fontWeight: 'bold', padding: '8px' }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveLessonName();
+                          } else if (e.key === 'Escape') {
+                            handleCancelEditLessonName();
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <button onClick={handleSaveLessonName} className="courses-btn courses-btn-primary" style={{ padding: '8px 16px' }}>
+                        ✓
+                      </button>
+                      <button onClick={handleCancelEditLessonName} className="courses-btn courses-btn-secondary" style={{ padding: '8px 16px' }}>
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <h1 
+                      onClick={handleStartEditLessonName}
+                      style={{ 
+                        cursor: isCourseAuthor() ? 'pointer' : 'default',
+                        userSelect: 'none'
+                      }}
+                      title={isCourseAuthor() ? 'Нажмите для редактирования' : ''}
+                    >
+                      {selectedLesson.name}
+                    </h1>
+                  )}
                   <p className="courses-view-meta">
                     Позиция: {selectedLesson.position + 1} • Создан: {formatDate(selectedLesson.created_at)}
                     {selectedLesson.updated_at && (
@@ -703,29 +1353,444 @@ function Courses() {
                     )}
                   </p>
                 </div>
-                <div className="courses-view-actions">
-                  <button onClick={handleEditLesson} className="courses-btn courses-btn-primary">
-                    Редактировать
-                  </button>
-                  <button onClick={handleDeleteLesson} className="courses-btn courses-btn-danger">
-                    Удалить
-                  </button>
-                </div>
+                {isCourseAuthor() && (
+                  <div className="courses-view-actions">
+                    <button onClick={handleDeleteLesson} className="courses-btn courses-btn-danger">
+                      Удалить
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="courses-view-content">
                 <h3>Описание</h3>
-                <p>{selectedLesson.description || 'Описание отсутствует'}</p>
+                {editingLessonDescription ? (
+                  <div>
+                    <textarea
+                      value={tempLessonDescription}
+                      onChange={(e) => setTempLessonDescription(e.target.value)}
+                      className="courses-textarea"
+                      rows="5"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          handleCancelEditLessonDescription();
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <button onClick={handleSaveLessonDescription} className="courses-btn courses-btn-primary">
+                        Сохранить
+                      </button>
+                      <button onClick={handleCancelEditLessonDescription} className="courses-btn courses-btn-secondary">
+                        Отменить
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={handleStartEditLessonDescription}
+                    style={{
+                      cursor: isCourseAuthor() ? 'pointer' : 'default',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: isCourseAuthor() ? '1px dashed transparent' : 'none',
+                      minHeight: '40px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isCourseAuthor()) {
+                        e.currentTarget.style.borderColor = '#ccc';
+                        e.currentTarget.style.backgroundColor = '#f9f9f9';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (isCourseAuthor()) {
+                        e.currentTarget.style.borderColor = 'transparent';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                    title={isCourseAuthor() ? 'Нажмите для редактирования' : ''}
+                  >
+                    {selectedLesson.description ? (
+                      <ReactMarkdown>{selectedLesson.description}</ReactMarkdown>
+                    ) : (
+                      <p style={{ color: '#999', fontStyle: 'italic' }}>Нажмите для добавления описания</p>
+                    )}
+                  </div>
+                )}
+                {(!selectedLesson.blocks || selectedLesson.blocks.length === 0) && isCourseAuthor() && (
+                  <div style={{ marginTop: '24px', padding: '24px', border: '2px dashed #ccc', borderRadius: '8px', textAlign: 'center', background: '#f9f9f9' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '12px' }}>Содержимое урока</h3>
+                    <p style={{ color: '#666', marginBottom: '20px' }}>
+                      В этом уроке пока нет блоков. Вы можете сгенерировать контент автоматически или добавить блоки вручную.
+                    </p>
+                    <button
+                      onClick={handleGenerateLessonContent}
+                      disabled={isGeneratingLessonContent}
+                      className="courses-btn courses-btn-primary"
+                      style={{ marginRight: '12px' }}
+                    >
+                      {isGeneratingLessonContent ? 'Генерация...' : '✨ Сгенерировать контент'}
+                    </button>
+                    <div className="lesson-blocks-add-menu" style={{ marginTop: '20px', display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('theory')}>
+                        + Теория
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('code')}>
+                        + Код
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('note')}>
+                        + Заметка
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('single_choice')}>
+                        + Вопрос (один ответ)
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('multiple_choice')}>
+                        + Вопрос (несколько ответов)
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {selectedLesson.blocks && selectedLesson.blocks.length > 0 && (
                   <>
                     <h3>Содержимое урока</h3>
+                    {isCourseAuthor() && (
+                      <div className="lesson-blocks-add-menu" style={{ marginBottom: '16px' }}>
+                        <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('theory')}>
+                          + Теория
+                        </button>
+                        <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('code')}>
+                          + Код
+                        </button>
+                        <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('note')}>
+                          + Заметка
+                        </button>
+                        <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('single_choice')}>
+                          + Вопрос (один ответ)
+                        </button>
+                        <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlock('multiple_choice')}>
+                          + Вопрос (несколько ответов)
+                        </button>
+                      </div>
+                    )}
                     <div className="lesson-blocks">
-                      {selectedLesson.blocks.map((block, index) => (
-                        <div key={index} className="lesson-block-view">
-                          {block.type === 'theory' && (
+                      {selectedLesson.blocks.map((block, index) => {
+                        const canDrag = isCourseAuthor() && block.block_id && editingBlockId !== block.block_id;
+                        return (
+                        <div 
+                          key={block.block_id || index} 
+                          className={`lesson-block-view ${dragOverBlockIndex === index ? 'drag-over' : ''}`}
+                          draggable={canDrag}
+                          onDragStart={(e) => {
+                            if (canDrag && block.block_id) {
+                              handleDragStartBlock(e, block.block_id);
+                            }
+                          }}
+                          onDragEnd={handleDragEndBlock}
+                          onDragOver={(e) => {
+                            if (isCourseAuthor() && draggedBlockId) {
+                              handleDragOverBlock(e, index);
+                            }
+                          }}
+                          onDragLeave={handleDragLeaveBlock}
+                          onDrop={(e) => {
+                            if (isCourseAuthor() && draggedBlockId) {
+                              handleDropBlock(e, index);
+                            }
+                          }}
+                          style={{
+                            cursor: canDrag ? 'grab' : 'default',
+                            opacity: draggedBlockId === block.block_id ? 0.5 : 1,
+                            position: 'relative'
+                          }}
+                        >
+                          {isCourseAuthor() && block.block_id && editingBlockId !== block.block_id && (
+                            <div 
+                              style={{
+                                position: 'absolute',
+                                left: '8px',
+                                top: '8px',
+                                fontSize: '18px',
+                                color: '#666',
+                                userSelect: 'none',
+                                pointerEvents: 'none',
+                                zIndex: 1
+                              }}
+                            >
+                              ⋮⋮
+                            </div>
+                          )}
+                          {editingBlockId === block.block_id ? (
+                            <div className="lesson-block-edit-form" style={{ marginLeft: isCourseAuthor() ? '24px' : '0' }}>
+                              {editingBlockData.type === 'theory' && (
+                                <>
+                                  <div className="courses-form-group">
+                                    <label>Заголовок</label>
+                                    <input
+                                      type="text"
+                                      value={editingBlockData.title || ''}
+                                      onChange={(e) => handleUpdateBlockData('title', e.target.value)}
+                                      className="courses-input"
+                                      placeholder="Заголовок блока"
+                                    />
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Содержимое (Markdown)</label>
+                                    <textarea
+                                      value={editingBlockData.content || ''}
+                                      onChange={(e) => handleUpdateBlockData('content', e.target.value)}
+                                      className="courses-textarea"
+                                      rows="8"
+                                      placeholder="Теоретический материал в формате Markdown"
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              {editingBlockData.type === 'code' && (
+                                <>
+                                  <div className="courses-form-group">
+                                    <label>Заголовок (необязательно)</label>
+                                    <input
+                                      type="text"
+                                      value={editingBlockData.title || ''}
+                                      onChange={(e) => handleUpdateBlockData('title', e.target.value)}
+                                      className="courses-input"
+                                      placeholder="Заголовок блока кода"
+                                    />
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Язык программирования</label>
+                                    <select
+                                      value={editingBlockData.language || 'python'}
+                                      onChange={(e) => handleUpdateBlockData('language', e.target.value)}
+                                      className="courses-input"
+                                    >
+                                      <option value="python">Python</option>
+                                      <option value="javascript">JavaScript</option>
+                                      <option value="java">Java</option>
+                                      <option value="cpp">C++</option>
+                                      <option value="c">C</option>
+                                      <option value="go">Go</option>
+                                      <option value="rust">Rust</option>
+                                      <option value="sql">SQL</option>
+                                    </select>
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Код</label>
+                                    <textarea
+                                      value={editingBlockData.code || ''}
+                                      onChange={(e) => handleUpdateBlockData('code', e.target.value)}
+                                      className="courses-textarea"
+                                      rows="10"
+                                      placeholder="Введите код"
+                                      style={{ fontFamily: 'monospace' }}
+                                    />
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Пояснение (необязательно)</label>
+                                    <textarea
+                                      value={editingBlockData.explanation || ''}
+                                      onChange={(e) => handleUpdateBlockData('explanation', e.target.value)}
+                                      className="courses-textarea"
+                                      rows="3"
+                                      placeholder="Пояснение к коду"
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              {editingBlockData.type === 'note' && (
+                                <>
+                                  <div className="courses-form-group">
+                                    <label>Тип заметки</label>
+                                    <select
+                                      value={editingBlockData.note_type || 'info'}
+                                      onChange={(e) => handleUpdateBlockData('note_type', e.target.value)}
+                                      className="courses-input"
+                                    >
+                                      <option value="info">Информация</option>
+                                      <option value="warning">Предупреждение</option>
+                                      <option value="tip">Совет</option>
+                                      <option value="important">Важно</option>
+                                    </select>
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Содержимое</label>
+                                    <textarea
+                                      value={editingBlockData.content || ''}
+                                      onChange={(e) => handleUpdateBlockData('content', e.target.value)}
+                                      className="courses-textarea"
+                                      rows="5"
+                                      placeholder="Текст заметки"
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              {editingBlockData.type === 'single_choice' && (
+                                <>
+                                  <div className="courses-form-group">
+                                    <label>Вопрос</label>
+                                    <input
+                                      type="text"
+                                      value={editingBlockData.question || ''}
+                                      onChange={(e) => handleUpdateBlockData('question', e.target.value)}
+                                      className="courses-input"
+                                      placeholder="Формулировка вопроса"
+                                    />
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Варианты ответов</label>
+                                    {(editingBlockData.options || ['', '']).map((option, optIndex) => (
+                                      <div key={optIndex} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                        <input
+                                          type="radio"
+                                          name={`correct-${editingBlockId}`}
+                                          checked={editingBlockData.correct_answer === optIndex}
+                                          onChange={() => handleUpdateBlockData('correct_answer', optIndex)}
+                                        />
+                                        <input
+                                          type="text"
+                                          value={option}
+                                          onChange={(e) => handleUpdateBlockOptions(optIndex, e.target.value)}
+                                          className="courses-input"
+                                          placeholder={`Вариант ${optIndex + 1}`}
+                                          style={{ flex: 1 }}
+                                        />
+                                        {(editingBlockData.options || []).length > 2 && (
+                                          <button
+                                            onClick={() => handleRemoveBlockOption(optIndex)}
+                                            className="courses-btn courses-btn-danger"
+                                            style={{ padding: '4px 8px' }}
+                                          >
+                                            Удалить
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                    <button
+                                      onClick={handleAddBlockOption}
+                                      className="courses-btn courses-btn-secondary"
+                                      style={{ marginTop: '8px' }}
+                                    >
+                                      + Добавить вариант
+                                    </button>
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Пояснение (необязательно)</label>
+                                    <textarea
+                                      value={editingBlockData.explanation || ''}
+                                      onChange={(e) => handleUpdateBlockData('explanation', e.target.value)}
+                                      className="courses-textarea"
+                                      rows="3"
+                                      placeholder="Пояснение к правильному ответу"
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              {editingBlockData.type === 'multiple_choice' && (
+                                <>
+                                  <div className="courses-form-group">
+                                    <label>Вопрос</label>
+                                    <input
+                                      type="text"
+                                      value={editingBlockData.question || ''}
+                                      onChange={(e) => handleUpdateBlockData('question', e.target.value)}
+                                      className="courses-input"
+                                      placeholder="Формулировка вопроса"
+                                    />
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Варианты ответов</label>
+                                    {(editingBlockData.options || ['', '']).map((option, optIndex) => (
+                                      <div key={optIndex} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={(editingBlockData.correct_answers || []).includes(optIndex)}
+                                          onChange={(e) => {
+                                            const currentAnswers = editingBlockData.correct_answers || [];
+                                            const newAnswers = e.target.checked
+                                              ? [...currentAnswers, optIndex]
+                                              : currentAnswers.filter(i => i !== optIndex);
+                                            handleUpdateBlockData('correct_answers', newAnswers);
+                                          }}
+                                        />
+                                        <input
+                                          type="text"
+                                          value={option}
+                                          onChange={(e) => handleUpdateBlockOptions(optIndex, e.target.value)}
+                                          className="courses-input"
+                                          placeholder={`Вариант ${optIndex + 1}`}
+                                          style={{ flex: 1 }}
+                                        />
+                                        {(editingBlockData.options || []).length > 2 && (
+                                          <button
+                                            onClick={() => handleRemoveBlockOption(optIndex)}
+                                            className="courses-btn courses-btn-danger"
+                                            style={{ padding: '4px 8px' }}
+                                          >
+                                            Удалить
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                    <button
+                                      onClick={handleAddBlockOption}
+                                      className="courses-btn courses-btn-secondary"
+                                      style={{ marginTop: '8px' }}
+                                    >
+                                      + Добавить вариант
+                                    </button>
+                                  </div>
+                                  <div className="courses-form-group">
+                                    <label>Пояснение (необязательно)</label>
+                                    <textarea
+                                      value={editingBlockData.explanation || ''}
+                                      onChange={(e) => handleUpdateBlockData('explanation', e.target.value)}
+                                      className="courses-textarea"
+                                      rows="3"
+                                      placeholder="Пояснение к правильным ответам"
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                                <button onClick={handleSaveBlock} className="courses-btn courses-btn-primary">
+                                  Сохранить
+                                </button>
+                                <button onClick={handleCancelBlockEdit} className="courses-btn courses-btn-secondary">
+                                  Отменить
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ marginLeft: isCourseAuthor() ? '24px' : '0' }}>
+                              {isCourseAuthor() && block.block_id && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '8px' }}>
+                                  <button 
+                                    onClick={() => handleEditBlock(block)} 
+                                    className="courses-btn courses-btn-secondary"
+                                    style={{ padding: '4px 12px', fontSize: '0.9em' }}
+                                  >
+                                    ✎ Редактировать
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteBlock(block.block_id)} 
+                                    className="courses-btn courses-btn-danger"
+                                    style={{ padding: '4px 12px', fontSize: '0.9em' }}
+                                  >
+                                    🗑 Удалить
+                                  </button>
+                                </div>
+                              )}
+                              {block.type === 'theory' && (
                             <div>
                               <div className="lesson-block-type-badge">📖 Теория</div>
                               {block.title && <h4 style={{ marginTop: '12px', marginBottom: '8px' }}>{block.title}</h4>}
-                              <div className="lesson-block-content" style={{ whiteSpace: 'pre-wrap' }}>{block.content || 'Пусто'}</div>
+                              <div className="lesson-block-content">
+                                {block.content ? (
+                                  <ReactMarkdown>{block.content}</ReactMarkdown>
+                                ) : (
+                                  <p>Пусто</p>
+                                )}
+                              </div>
                             </div>
                           )}
                           {block.type === 'code' && (
@@ -737,7 +1802,8 @@ function Courses() {
                               </pre>
                               {block.explanation && (
                                 <div style={{ marginTop: '12px', padding: '12px', background: '#f0f0f0', borderRadius: '4px' }}>
-                                  <strong>Пояснение:</strong> {block.explanation}
+                                  <strong>Пояснение:</strong>
+                                  <ReactMarkdown>{block.explanation}</ReactMarkdown>
                                 </div>
                               )}
                             </div>
@@ -750,34 +1816,107 @@ function Courses() {
                                 {block.note_type === 'tip' && '💡 Совет'}
                                 {block.note_type === 'important' && '❗ Важно'}
                               </div>
-                              <div className="lesson-block-content" style={{ marginTop: '12px' }}>{block.content || 'Пусто'}</div>
+                              <div className="lesson-block-content" style={{ marginTop: '12px' }}>
+                                {block.content ? (
+                                  <ReactMarkdown>{block.content}</ReactMarkdown>
+                                ) : (
+                                  <p>Пусто</p>
+                                )}
+                              </div>
                             </div>
                           )}
                           {block.type === 'single_choice' && (
                             <div>
                               <div className="lesson-block-type-badge">❓ Вопрос (один ответ)</div>
                               <h4 style={{ marginTop: '12px', marginBottom: '12px' }}>{block.question || 'Вопрос не указан'}</h4>
-                              <ul style={{ listStyle: 'none', padding: 0 }}>
-                                {(block.options || []).map((opt, optIdx) => (
-                                  <li key={optIdx} style={{ 
-                                    padding: '8px 12px', 
-                                    marginBottom: '8px', 
-                                    background: optIdx === block.correct_answer ? '#d1fae5' : '#f3f4f6',
-                                    border: optIdx === block.correct_answer ? '2px solid #10b981' : '1px solid #e5e7eb',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                  }}>
-                                    <span>{optIdx === block.correct_answer ? '✓' : '○'}</span>
-                                    <span>{opt || `Вариант ${optIdx + 1}`}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {block.explanation && (
-                                <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
-                                  <strong>Пояснение:</strong> {block.explanation}
-                                </div>
+                              {isCourseAuthor() ? (
+                                // Для автора показываем правильные ответы
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => (
+                                      <li key={optIdx} style={{ 
+                                        padding: '8px 12px', 
+                                        marginBottom: '8px', 
+                                        background: optIdx === block.correct_answer ? '#d1fae5' : '#f3f4f6',
+                                        border: optIdx === block.correct_answer ? '2px solid #10b981' : '1px solid #e5e7eb',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}>
+                                        <span>{optIdx === block.correct_answer ? '✓' : '○'}</span>
+                                        <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  {block.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{block.explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                // Для не-автора показываем интерактивный вопрос
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => {
+                                      const selectedAnswer = questionAnswers[block.block_id];
+                                      const checkedResult = checkedQuestions[block.block_id];
+                                      const isSelected = selectedAnswer === optIdx;
+                                      // Показываем правильный ответ только после успешной проверки в текущей сессии
+                                      const showCorrect = checkedResult?.is_correct && checkedResult?.correct_answer === optIdx;
+                                      
+                                      return (
+                                        <li 
+                                          key={optIdx} 
+                                          onClick={() => !checkedResult?.is_correct && handleSingleChoiceSelect(block.block_id, optIdx)}
+                                          style={{ 
+                                            padding: '8px 12px', 
+                                            marginBottom: '8px', 
+                                            background: showCorrect ? '#d1fae5' : isSelected ? '#e0e7ff' : '#f3f4f6',
+                                            border: showCorrect ? '2px solid #10b981' : isSelected ? '2px solid #6366f1' : '1px solid #e5e7eb',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            cursor: checkedResult?.is_correct ? 'default' : 'pointer',
+                                            transition: 'all 0.2s'
+                                          }}
+                                        >
+                                          <span>
+                                            {showCorrect ? '✓' : isSelected ? '●' : '○'}
+                                          </span>
+                                          <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                  {!checkedQuestions[block.block_id]?.is_correct && (
+                                    <button
+                                      onClick={() => handleCheckAnswer(block.block_id)}
+                                      disabled={questionAnswers[block.block_id] === undefined}
+                                      style={{
+                                        marginTop: '12px',
+                                        padding: '8px 16px',
+                                        background: questionAnswers[block.block_id] !== undefined ? '#6366f1' : '#9ca3af',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: questionAnswers[block.block_id] !== undefined ? 'pointer' : 'not-allowed',
+                                        fontWeight: '500'
+                                      }}
+                                    >
+                                      Проверить ответ
+                                    </button>
+                                  )}
+                                  {checkedQuestions[block.block_id]?.is_correct && checkedQuestions[block.block_id]?.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{checkedQuestions[block.block_id].explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
@@ -785,32 +1924,102 @@ function Courses() {
                             <div>
                               <div className="lesson-block-type-badge">❓ Вопрос (несколько ответов)</div>
                               <h4 style={{ marginTop: '12px', marginBottom: '12px' }}>{block.question || 'Вопрос не указан'}</h4>
-                              <ul style={{ listStyle: 'none', padding: 0 }}>
-                                {(block.options || []).map((opt, optIdx) => (
-                                  <li key={optIdx} style={{ 
-                                    padding: '8px 12px', 
-                                    marginBottom: '8px', 
-                                    background: (block.correct_answers || []).includes(optIdx) ? '#d1fae5' : '#f3f4f6',
-                                    border: (block.correct_answers || []).includes(optIdx) ? '2px solid #10b981' : '1px solid #e5e7eb',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                  }}>
-                                    <span>{(block.correct_answers || []).includes(optIdx) ? '✓' : '☐'}</span>
-                                    <span>{opt || `Вариант ${optIdx + 1}`}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {block.explanation && (
-                                <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
-                                  <strong>Пояснение:</strong> {block.explanation}
-                                </div>
+                              {isCourseAuthor() ? (
+                                // Для автора показываем правильные ответы
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => (
+                                      <li key={optIdx} style={{ 
+                                        padding: '8px 12px', 
+                                        marginBottom: '8px', 
+                                        background: (block.correct_answers || []).includes(optIdx) ? '#d1fae5' : '#f3f4f6',
+                                        border: (block.correct_answers || []).includes(optIdx) ? '2px solid #10b981' : '1px solid #e5e7eb',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}>
+                                        <span>{(block.correct_answers || []).includes(optIdx) ? '✓' : '☐'}</span>
+                                        <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  {block.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{block.explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                // Для не-автора показываем интерактивный вопрос
+                                <>
+                                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {(block.options || []).map((opt, optIdx) => {
+                                      const selectedAnswers = questionAnswers[block.block_id] || [];
+                                      const checkedResult = checkedQuestions[block.block_id];
+                                      const isSelected = selectedAnswers.includes(optIdx);
+                                      // Показываем правильные ответы только после успешной проверки в текущей сессии
+                                      const showCorrect = checkedResult?.is_correct && (checkedResult?.correct_answers || []).includes(optIdx);
+                                      
+                                      return (
+                                        <li 
+                                          key={optIdx} 
+                                          onClick={() => !checkedResult?.is_correct && handleMultipleChoiceToggle(block.block_id, optIdx)}
+                                          style={{ 
+                                            padding: '8px 12px', 
+                                            marginBottom: '8px', 
+                                            background: showCorrect ? '#d1fae5' : isSelected ? '#e0e7ff' : '#f3f4f6',
+                                            border: showCorrect ? '2px solid #10b981' : isSelected ? '2px solid #6366f1' : '1px solid #e5e7eb',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            cursor: checkedResult?.is_correct ? 'default' : 'pointer',
+                                            transition: 'all 0.2s'
+                                          }}
+                                        >
+                                          <span>
+                                            {showCorrect ? '✓' : isSelected ? '☑' : '☐'}
+                                          </span>
+                                          <span>{opt || `Вариант ${optIdx + 1}`}</span>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                  {!checkedQuestions[block.block_id]?.is_correct && (
+                                    <button
+                                      onClick={() => handleCheckAnswer(block.block_id)}
+                                      disabled={!questionAnswers[block.block_id] || questionAnswers[block.block_id].length === 0}
+                                      style={{
+                                        marginTop: '12px',
+                                        padding: '8px 16px',
+                                        background: (questionAnswers[block.block_id] && questionAnswers[block.block_id].length > 0) ? '#6366f1' : '#9ca3af',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: (questionAnswers[block.block_id] && questionAnswers[block.block_id].length > 0) ? 'pointer' : 'not-allowed',
+                                        fontWeight: '500'
+                                      }}
+                                    >
+                                      Проверить ответ
+                                    </button>
+                                  )}
+                                  {checkedQuestions[block.block_id]?.is_correct && checkedQuestions[block.block_id]?.explanation && (
+                                    <div style={{ marginTop: '12px', padding: '12px', background: '#eff6ff', borderRadius: '4px', fontStyle: 'italic' }}>
+                                      <strong>Пояснение:</strong>
+                                      <ReactMarkdown>{checkedQuestions[block.block_id].explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
+                            </div>
+                          )}
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   </>
                 )}
@@ -818,11 +2027,11 @@ function Courses() {
             </div>
           )}
 
-          {/* Редактирование урока */}
-          {isEditingLesson && (
+          {/* Создание нового урока */}
+          {isEditingLesson && isCreatingLesson && (
             <div className="courses-edit">
               <div className="courses-edit-header">
-                <h2>{isCreatingLesson ? 'Создание нового урока' : 'Редактирование урока'}</h2>
+                <h2>Создание нового урока</h2>
                 <div className="courses-edit-actions">
                   <button onClick={handleCancelLesson} className="courses-btn courses-btn-secondary">
                     Отменить
@@ -856,7 +2065,7 @@ function Courses() {
                   />
                 </div>
 
-                {/* Редактор блоков */}
+                {/* Редактор блоков - только для создания нового урока */}
                 <div className="lesson-blocks-editor">
                   <div className="lesson-blocks-header">
                     <h3>Блоки урока</h3>
@@ -886,7 +2095,7 @@ function Courses() {
                   ) : (
                     <div className="lesson-blocks-list">
                       {editedLessonBlocks.map((block, index) => (
-                        <div key={index} className={`lesson-block-editor ${editingBlockIndex === index ? 'editing' : ''}`}>
+                        <div key={block.block_id || `new-${index}`} className={`lesson-block-editor ${editingBlockIndex === index ? 'editing' : ''}`}>
                           <div className="lesson-block-header">
                             <div className="lesson-block-type-badge">
                               {block.type === 'theory' && '📖 Теория'}
@@ -1177,7 +2386,13 @@ function Courses() {
                               {block.type === 'theory' && (
                                 <div>
                                   <strong>{block.title || 'Без заголовка'}</strong>
-                                  <p style={{ marginTop: '8px', whiteSpace: 'pre-wrap' }}>{block.content || 'Пусто'}</p>
+                                  <div style={{ marginTop: '8px' }}>
+                                    {block.content ? (
+                                      <ReactMarkdown>{block.content}</ReactMarkdown>
+                                    ) : (
+                                      <p>Пусто</p>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                               {block.type === 'code' && (
@@ -1186,13 +2401,23 @@ function Courses() {
                                   <pre style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px', overflow: 'auto' }}>
                                     <code>{block.code || 'Пусто'}</code>
                                   </pre>
-                                  {block.explanation && <p style={{ marginTop: '8px' }}>{block.explanation}</p>}
+                                  {block.explanation && (
+                                    <div style={{ marginTop: '8px' }}>
+                                      <ReactMarkdown>{block.explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               {block.type === 'note' && (
                                 <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '4px' }}>
                                   <strong>{block.note_type === 'info' ? 'ℹ️ Информация' : block.note_type === 'warning' ? '⚠️ Предупреждение' : block.note_type === 'tip' ? '💡 Совет' : '❗ Важно'}</strong>
-                                  <p style={{ marginTop: '8px' }}>{block.content || 'Пусто'}</p>
+                                  <div style={{ marginTop: '8px' }}>
+                                    {block.content ? (
+                                      <ReactMarkdown>{block.content}</ReactMarkdown>
+                                    ) : (
+                                      <p>Пусто</p>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                               {block.type === 'single_choice' && (
@@ -1205,7 +2430,11 @@ function Courses() {
                                       </li>
                                     ))}
                                   </ul>
-                                  {block.explanation && <p style={{ marginTop: '8px', fontStyle: 'italic' }}>{block.explanation}</p>}
+                                  {block.explanation && (
+                                    <div style={{ marginTop: '8px', fontStyle: 'italic' }}>
+                                      <ReactMarkdown>{block.explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               {block.type === 'multiple_choice' && (
@@ -1218,7 +2447,11 @@ function Courses() {
                                       </li>
                                     ))}
                                   </ul>
-                                  {block.explanation && <p style={{ marginTop: '8px', fontStyle: 'italic' }}>{block.explanation}</p>}
+                                  {block.explanation && (
+                                    <div style={{ marginTop: '8px', fontStyle: 'italic' }}>
+                                      <ReactMarkdown>{block.explanation}</ReactMarkdown>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1237,35 +2470,39 @@ function Courses() {
             <div className="lessons-cards-view">
               <div className="lessons-cards-header">
                 <h2>Уроки курса "{selectedCourse.name}"</h2>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    onClick={handleOpenGenerateLessonsModal} 
-                    className="courses-btn courses-btn-secondary"
-                    disabled={isGeneratingLessons}
-                  >
-                    {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать уроки'}
-                  </button>
-                  <button onClick={handleCreateNewLesson} className="courses-btn courses-btn-primary">
-                    + Создать урок
-                  </button>
-                </div>
+                {isCourseAuthor() && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      onClick={handleOpenGenerateLessonsModal} 
+                      className="courses-btn courses-btn-secondary"
+                      disabled={isGeneratingLessons}
+                    >
+                      {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать уроки'}
+                    </button>
+                    <button onClick={handleCreateNewLesson} className="courses-btn courses-btn-primary">
+                      + Создать урок
+                    </button>
+                  </div>
+                )}
               </div>
               {lessons.length === 0 ? (
                 <div className="lessons-cards-empty">
                   <p>В этом курсе пока нет уроков</p>
-                  <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', alignItems: 'center' }}>
-                    <button 
-                      onClick={handleOpenGenerateLessonsModal} 
-                      className="courses-create-btn-large"
-                      disabled={isGeneratingLessons}
-                    >
-                      {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать план уроков'}
-                    </button>
-                    <span style={{ color: '#666', fontSize: '0.9em' }}>или</span>
-                    <button onClick={handleCreateNewLesson} className="courses-create-btn-large">
-                      Создать первый урок вручную
-                    </button>
-                  </div>
+                  {isCourseAuthor() && (
+                    <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', alignItems: 'center' }}>
+                      <button 
+                        onClick={handleOpenGenerateLessonsModal} 
+                        className="courses-create-btn-large"
+                        disabled={isGeneratingLessons}
+                      >
+                        {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать план уроков'}
+                      </button>
+                      <span style={{ color: '#666', fontSize: '0.9em' }}>или</span>
+                      <button onClick={handleCreateNewLesson} className="courses-create-btn-large">
+                        Создать первый урок вручную
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="lessons-cards-grid">
@@ -1280,7 +2517,11 @@ function Courses() {
                         <div className="lesson-card-position">#{lesson.position + 1}</div>
                       </div>
                       <div className="lesson-card-description">
-                        {lesson.description || 'Без описания'}
+                        {lesson.description ? (
+                          <ReactMarkdown>{lesson.description}</ReactMarkdown>
+                        ) : (
+                          <span>Без описания</span>
+                        )}
                       </div>
                       <div className="lesson-card-footer">
                         <div className="lesson-card-meta">

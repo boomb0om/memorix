@@ -11,9 +11,14 @@ from courses.schema import (
     GenerateLessonsRequest,
 )
 import courses.service.courses as course_service
+from courses.api.lessons import router as lessons_router
+from courses.api.lesson_generation import router as lesson_generation_router
 
 
 router = APIRouter(prefix="/courses", tags=["courses"])
+
+router.include_router(lessons_router)
+router.include_router(lesson_generation_router)
 
 
 @router.post("", response_model=CourseResponse, status_code=201)

@@ -34,6 +34,18 @@ function Register() {
       return;
     }
 
+    if (formData.password.length <= 8) {
+      setError('Пароль должен быть больше 8 символов');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length >= 128) {
+      setError('Пароль должен быть меньше 128 символов');
+      setLoading(false);
+      return;
+    }
+
     const result = await register(formData.email, formData.username, formData.password);
     
     if (result.success) {

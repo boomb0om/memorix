@@ -14,7 +14,7 @@ function Navbar() {
   };
 
   const handleLogoClick = () => {
-    navigate('/dashboard');
+    navigate('/courses');
   };
 
   return (
