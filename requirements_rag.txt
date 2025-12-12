@@ -5,3 +5,6 @@ langchain-huggingface
 langchain-qdrant
 sentence-transformers
 pypdf
+openai
+pandas
+matplotlib
