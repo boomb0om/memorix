@@ -30,8 +30,6 @@ services:
       db:
         condition: service_healthy
     command: ["bash", "scripts/init-migration.sh"]
-    volumes:
-      - ./backend:/app
 
   backend:
     build: ./backend
@@ -40,12 +38,35 @@ services:
     environment:
       - DATABASE_URI=postgresql+asyncpg://memorix:hackmemorix@db:5432/memorix_backend
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      # S3 Settings
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      # Deployment Settings
+      - ENVIRONMENT=${ENVIRONMENT}
     depends_on:
       migration:
         condition: service_completed_successfully
-    volumes:
-      - ./backend:/app
-    command: ["python", "__main__.py"]
+    command: ["uv", "run", "--no-sync", "python", "__main__.py"]
+
+  indexer:
+    build: ./backend
+    environment:
+      - DATABASE_URI=postgresql+asyncpg://memorix:hackmemorix@db:5432/memorix_backend
+      # S3 Settings
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      # Deployment Settings
+      - ENVIRONMENT=${ENVIRONMENT}
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    command: ["uv", "run", "--no-sync", "python", "-m", "documents.indexer.worker"]
 
   frontend:
     build: ./frontend
@@ -66,10 +87,11 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/readyz"]
-      interval: 5s
-      timeout: 3s
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/readyz || exit 1"]
+      interval: 10s
+      timeout: 5s
       retries: 10
+      start_period: 30s
     deploy:
       resources:
         limits:

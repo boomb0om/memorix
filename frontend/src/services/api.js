@@ -213,4 +213,20 @@ export const lessonsApi = {
   generateContent: (courseId, lessonId, data) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/generate-content`, data || {}),
 };
 
+// API для работы с документами
+export const documentsApi = {
+  // Получить все документы пользователя
+  getAll: () => api.get('/api/documents'),
+  
+  // Получить документ по ID
+  getById: (id) => api.get(`/api/documents/${id}`),
+  
+  // Загрузить новый документ
+  create: (formData) => api.post('/api/documents', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
+};
+
 export default api;

@@ -17,8 +17,8 @@ echo "Database is ready - running migrations"
 # Set environment variables for alembic
 export DATABASE_URI="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
 
-# Run migrations
-alembic upgrade head
+# Run migrations без пересоздания окружения (зависимости уже установлены в образе)
+uv run --no-sync alembic upgrade head
 
 if [ $? -eq 0 ]; then
     echo "Migrations completed successfully"

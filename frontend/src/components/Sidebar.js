@@ -12,7 +12,7 @@ function Sidebar() {
   const menuItems = [
     { icon: '📚', label: 'Курсы', path: '/courses' },
     { icon: '📝', label: 'Конспекты', path: '/notes' },
-    { icon: '📄', label: 'Документы', path: '/documents', disabled: true, soon: true },
+    { icon: '📄', label: 'Документы', path: '/documents' },
   ];
 
   const handleMenuClick = (path) => {

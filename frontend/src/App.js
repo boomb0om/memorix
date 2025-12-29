@@ -7,6 +7,7 @@ import Register from './components/Register';
 import Profile from './components/Profile';
 import Notes from './components/Notes';
 import Courses from './components/Courses';
+import Documents from './components/Documents';
 import Navbar from './components/Navbar';
 
 function AppContent() {
@@ -73,6 +74,15 @@ function AppContent() {
               <SidebarProvider>
                 <Navbar />
                 <Courses />
+              </SidebarProvider>
+            ) : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/documents" 
+            element={user ? (
+              <SidebarProvider>
+                <Navbar />
+                <Documents />
               </SidebarProvider>
             ) : <Navigate to="/login" />} 
           />

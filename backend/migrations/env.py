@@ -15,6 +15,7 @@ from core.db import Base
 from users.dao.models import *
 from notes.dao.models import *
 from courses.dao.models import *
+from documents.dao.models import *
 from core.configs.db import db_settings
 
 # this is the Alembic Config object, which provides

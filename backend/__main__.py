@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from users.api.users import router as users_router
 from notes.api.notes import router as notes_router
 from courses.api.courses import router as courses_router
+from documents.api.documents import router as documents_router
 from core.middleware.auth_middleware import auth_middleware
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ def create_app():
     app.include_router(users_router, prefix="/api")
     app.include_router(notes_router, prefix="/api")
     app.include_router(courses_router, prefix="/api")
+    app.include_router(documents_router, prefix="/api")
 
     @app.on_event("startup")
     async def startup_event():
