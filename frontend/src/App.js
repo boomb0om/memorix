@@ -6,7 +6,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
 import Notes from './components/Notes';
-import Courses from './components/Courses';
+import Courses from './components/Courses/Courses';
 import Documents from './components/Documents';
 import Navbar from './components/Navbar';
 

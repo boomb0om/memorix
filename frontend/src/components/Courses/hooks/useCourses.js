@@ -1,0 +1,229 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { coursesApi } from '../../../services/api';
+
+/**
+ * Хук для управления курсами
+ */
+export const useCourses = () => {
+  const navigate = useNavigate();
+  const { courseId } = useParams();
+  const [myCourses, setMyCourses] = useState([]);
+  const [communityCourses, setCommunityCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [isEditingCourse, setIsEditingCourse] = useState(false);
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+  const [editedCourseName, setEditedCourseName] = useState('');
+  const [editedCourseDescription, setEditedCourseDescription] = useState('');
+
+  const loadCourses = async (queryText = '') => {
+    const normalizedQuery = queryText.trim();
+    try {
+      setLoading(true);
+      if (normalizedQuery) {
+        setIsSearching(true);
+        setActiveSearchQuery(normalizedQuery);
+        const response = await coursesApi.search(normalizedQuery);
+        const myList = response.data?.my || [];
+        const communityList = response.data?.community || [];
+        setMyCourses(myList);
+        setCommunityCourses(communityList);
+      } else {
+        setIsSearching(false);
+        setActiveSearchQuery('');
+        const [allResponse, myResponse] = await Promise.all([
+          coursesApi.getAll(),
+          coursesApi.getMy(),
+        ]);
+        const myList = myResponse.data || [];
+        const allList = allResponse.data || [];
+        const myIds = new Set(myList.map(course => course.id));
+        const communityList = allList.filter(course => !myIds.has(course.id));
+        setMyCourses(myList);
+        setCommunityCourses(communityList);
+      }
+      setError(null);
+    } catch (err) {
+      setError('Не удалось загрузить курсы');
+      console.error('Error loading courses:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCourseById = async (courseIdNum) => {
+    try {
+      const response = await coursesApi.getById(courseIdNum);
+      setSelectedCourse(response.data);
+      setError(null);
+      return response.data;
+    } catch (err) {
+      setError('Не удалось загрузить курс');
+      console.error('Error loading course:', err);
+      throw err;
+    }
+  };
+
+  const handleSelectCourse = async (courseIdNum) => {
+    try {
+      const course = await loadCourseById(courseIdNum);
+      setIsEditingCourse(false);
+      setIsCreatingCourse(false);
+      navigate(`/courses/${courseIdNum}`);
+    } catch (err) {
+      // Ошибка уже обработана в loadCourseById
+    }
+  };
+
+  const handleSaveCourse = async () => {
+    try {
+      if (isCreatingCourse) {
+        const response = await coursesApi.create({
+          name: editedCourseName,
+          description: editedCourseDescription,
+        });
+        setSelectedCourse(response.data);
+        await loadCourses();
+        setIsCreatingCourse(false);
+        navigate(`/courses/${response.data.id}`);
+      } else if (selectedCourse) {
+        const response = await coursesApi.update(selectedCourse.id, {
+          name: editedCourseName,
+          description: editedCourseDescription,
+        });
+        setSelectedCourse(response.data);
+        await loadCourses();
+      }
+      setIsEditingCourse(false);
+      setError(null);
+    } catch (err) {
+      setError('Не удалось сохранить курс');
+      console.error('Error saving course:', err);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    if (selectedCourse && window.confirm('Вы уверены, что хотите удалить этот курс?')) {
+      try {
+        await coursesApi.delete(selectedCourse.id);
+        setSelectedCourse(null);
+        await loadCourses();
+        navigate('/courses');
+        setError(null);
+      } catch (err) {
+        setError('Не удалось удалить курс');
+        console.error('Error deleting course:', err);
+      }
+    }
+  };
+
+  const handleCreateNewCourse = () => {
+    setIsCreatingCourse(true);
+    setIsEditingCourse(true);
+    setSelectedCourse(null);
+    setEditedCourseName('');
+    setEditedCourseDescription('');
+  };
+
+  const handleEditCourse = () => {
+    if (selectedCourse) {
+      setEditedCourseName(selectedCourse.name);
+      setEditedCourseDescription(selectedCourse.description || '');
+      setIsEditingCourse(true);
+    }
+  };
+
+  const handleCancelCourse = () => {
+    setIsEditingCourse(false);
+    setIsCreatingCourse(false);
+    setEditedCourseName('');
+    setEditedCourseDescription('');
+  };
+
+  const handleBackToCourses = () => {
+    setSelectedCourse(null);
+    setIsEditingCourse(false);
+    setIsCreatingCourse(false);
+    navigate('/courses');
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    loadCourses(searchQuery);
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery('');
+    loadCourses('');
+  };
+
+  const handleSearchChange = (event) => {
+    const value = event.target.value;
+    setSearchQuery(value);
+    if (value.trim() === '' && isSearching) {
+      loadCourses('');
+    }
+  };
+
+  // Загрузка курса из URL
+  useEffect(() => {
+    const loadFromUrl = async () => {
+      if (courseId) {
+        try {
+          const courseIdNum = parseInt(courseId);
+          await loadCourseById(courseIdNum);
+        } catch (err) {
+          navigate('/courses');
+        }
+      } else {
+        setSelectedCourse(null);
+      }
+    };
+    
+    loadFromUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId]);
+
+  // Загрузка списка курсов при монтировании
+  useEffect(() => {
+    if (!courseId) {
+      loadCourses();
+    }
+  }, []);
+
+  return {
+    myCourses,
+    communityCourses,
+    selectedCourse,
+    setSelectedCourse,
+    loading,
+    error,
+    setError,
+    searchQuery,
+    activeSearchQuery,
+    isSearching,
+    isEditingCourse,
+    isCreatingCourse,
+    editedCourseName,
+    editedCourseDescription,
+    setEditedCourseName,
+    setEditedCourseDescription,
+    loadCourses,
+    handleSelectCourse,
+    handleSaveCourse,
+    handleDeleteCourse,
+    handleCreateNewCourse,
+    handleEditCourse,
+    handleCancelCourse,
+    handleBackToCourses,
+    handleSearchSubmit,
+    handleSearchClear,
+    handleSearchChange,
+  };
+};
+
