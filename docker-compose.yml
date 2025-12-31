@@ -75,6 +75,11 @@ services:
     depends_on:
       - backend
 
+  landing:
+    build: ./landing
+    ports:
+      - "80:80"
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant
