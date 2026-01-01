@@ -1,0 +1,55 @@
+# Production Caddyfile for Memorix Landing with HTTPS
+
+{
+    # Email for Let's Encrypt certificate notifications
+    email igorekandco1@gmail.com
+}
+
+# Redirect www to non-www
+www.memorix.space {
+    redir https://memorix.space{uri} permanent
+}
+
+# Main domain configuration
+memorix.space {
+    # Reverse proxy to landing service
+    reverse_proxy landing:80
+    
+    # Enable gzip compression
+    encode gzip
+    
+    # Security headers
+    header {
+        # Enable HSTS (HTTP Strict Transport Security)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        
+        # Clickjacking protection
+        X-Frame-Options "SAMEORIGIN"
+        
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+        
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
+        
+        # Remove Server header for security
+        -Server
+    }
+    
+    # Access logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+        }
+        format json
+    }
+}
+
