@@ -1,22 +1,24 @@
+from core.db import get_db
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.db import get_db
+
+import courses.service.courses as course_service
+from courses.api.block_generation import router as block_generation_router
+from courses.api.lesson_generation import router as lesson_generation_router
+from courses.api.lessons import router as lessons_router
 from courses.schema import (
     CourseCreate,
-    CourseUpdate,
     CourseResponse,
-    CourseWithLessons,
     CourseSearchResponse,
-    LessonListItem,
+    CourseUpdate,
+    CourseWithLessons,
     GenerateLessonsRequest,
+    LessonListItem,
 )
-import courses.service.courses as course_service
-from courses.api.lessons import router as lessons_router
-from courses.api.lesson_generation import router as lesson_generation_router
-
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
+router.include_router(block_generation_router)
 router.include_router(lessons_router)
 router.include_router(lesson_generation_router)
 
