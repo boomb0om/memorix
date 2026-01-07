@@ -3,6 +3,7 @@ from core.configs.s3 import s3_settings
 
 
 class FilesRepository:
+
     def __init__(self):
         self.session = aioboto3.Session()
         self.endpoint_url = s3_settings.endpoint_url

@@ -3,10 +3,7 @@ from sqlalchemy.orm import DeclarativeBase
 from core.configs.db import db_settings
 
 # Создаем асинхронный движок
-engine = create_async_engine(
-    db_settings.database_uri.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=True
-)
+engine = create_async_engine(db_settings.database_uri.replace("postgresql://", "postgresql+asyncpg://"))
 
 # Создаем фабрику асинхронных сессий
 AsyncSessionLocal = async_sessionmaker(

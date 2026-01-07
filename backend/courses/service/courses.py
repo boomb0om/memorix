@@ -74,6 +74,7 @@ async def search_courses(db: AsyncSession, user_id: int, query: str):
         "community": community_courses
     }
 
+
 async def update_course(
     db: AsyncSession,
     course_id: int,

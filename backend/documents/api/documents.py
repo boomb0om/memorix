@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
 from documents.schema import DocumentResponse, DocumentCreate
 from documents.service import upload_document, get_document, get_all_documents
+from core.configs.backend import backend_settings
 
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -15,9 +16,16 @@ async def create_document(
     request: Request = None,
     db: AsyncSession = Depends(get_db)
 ):
-    user_id = request.state.user_id
-    document_data = DocumentCreate(name=name)
-    return await upload_document(db, file, document_data, user_id)
+    file_content = await file.read()
+    file_size = len(file_content)
+    
+    if file_size > backend_settings.max_file_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File is too large. Maximum size: {backend_settings.max_file_size / (1024 * 1024):.2f}MB. Your file size: {file_size / (1024 * 1024):.2f}MB"
+        )
+    
+    return await upload_document(db, file, DocumentCreate(name=name), request.state.user_id, file_content=file_content)
 
 
 @router.get("", response_model=list[DocumentResponse])

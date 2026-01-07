@@ -1,4 +1,5 @@
 import asyncio
+from loguru import logger
 from core.db.sqlalchemy import AsyncSessionLocal
 from documents.dao import DocumentDAO
 from core.llm.rag.langchain_qdrant import RAGLangChain
@@ -13,15 +14,42 @@ def get_file_extension(filename: str) -> DocumentExtension:
     return "txt"
 
 
+async def wait_for_qdrant(max_retries: int = 10, delay: int = 5):
+    """Ожидание доступности Qdrant перед началом работы"""
+    from qdrant_client import QdrantClient
+    from core.configs.rag import qdrant_settings
+    
+    for attempt in range(max_retries):
+        try:
+            client = QdrantClient(url=qdrant_settings.host)
+            # Проверяем доступность через получение списка коллекций
+            client.get_collections()
+            logger.info("Qdrant is available")
+            return True
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.info(f"Waiting for Qdrant... (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                await asyncio.sleep(delay)
+            else:
+                logger.exception(f"Failed to connect to Qdrant after {max_retries} attempts: {str(e)}")
+                return False
+    return False
+
+
 async def index_document(document_id: int, s3_path: str, filename: str, user_id: int):
     try:
         document_bytes = await files_repository.download_file(s3_path)
     except Exception as e:
-        print(f"Failed to download document {document_id} from S3: {str(e)}")
+        logger.exception(f"Failed to download document {document_id} from S3: {str(e)}")
         return False
     
     extension = get_file_extension(filename)
-    rag = RAGLangChain()
+    
+    try:
+        rag = RAGLangChain()
+    except Exception as e:
+        logger.exception(f"Failed to initialize RAG client for document {document_id}: {str(e)}")
+        return False
     
     try:
         rag.index_document(
@@ -32,7 +60,7 @@ async def index_document(document_id: int, s3_path: str, filename: str, user_id:
         )
         return True
     except Exception as e:
-        print(f"Failed to index document {document_id}: {str(e)}")
+        logger.exception(f"Failed to index document {document_id}: {str(e)}")
         return False
 
 
@@ -41,7 +69,7 @@ async def process_unindexed_documents():
         unindexed = await DocumentDAO.get_all_unindexed(session)
         
         for document in unindexed:
-            print(f"Indexing document {document.id}: {document.name}")
+            logger.info(f"Indexing document {document.id}: {document.name}")
             
             success = await index_document(
                 document.id,
@@ -53,17 +81,22 @@ async def process_unindexed_documents():
             if success:
                 await DocumentDAO.mark_as_indexed(session, document.id)
                 await session.commit()
-                print(f"Successfully indexed document {document.id}")
+                logger.info(f"Successfully indexed document {document.id}")
             else:
-                print(f"Failed to index document {document.id}")
+                logger.exception(f"Failed to index document {document.id}")
 
 
 async def main():
+    # Ждем доступности Qdrant перед началом работы
+    if not await wait_for_qdrant():
+        logger.error("Cannot start indexing worker: Qdrant is not available")
+        return
+    
     while True:
         try:
             await process_unindexed_documents()
         except Exception as e:
-            print(f"Error in indexing worker: {str(e)}")
+            logger.exception(f"Error in indexing worker: {str(e)}")
         
         await asyncio.sleep(30)
 

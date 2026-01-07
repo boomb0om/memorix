@@ -19,13 +19,15 @@ async def upload_document(
     db: AsyncSession,
     file: UploadFile,
     document_data: DocumentCreate,
-    user_id: int
+    user_id: int,
+    file_content: bytes = None
 ) -> DocumentResponse:
     file_extension = get_file_extension(file.filename)
     unique_filename = f"{uuid.uuid4()}.{file_extension}" if file_extension else str(uuid.uuid4())
     s3_path = get_s3_path(unique_filename)
     
-    file_content = await file.read()
+    if file_content is None:
+        file_content = await file.read()
     await files_repository.upload_file(file_content, s3_path)
     
     db_document = await DocumentDAO.create(

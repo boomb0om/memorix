@@ -50,6 +50,15 @@ services:
         condition: service_completed_successfully
     command: ["uv", "run", "--no-sync", "python", "__main__.py"]
 
+  qdrant_migration:
+    build: ./backend
+    environment:
+      # Qdrant Settings
+      - QDRANT_HOST=http://qdrant:6333
+    depends_on:
+      - qdrant
+    command: ["uv", "run", "--no-sync", "python", "scripts/qdrant_migration.py"]
+
   indexer:
     build: ./backend
     environment:
@@ -61,11 +70,15 @@ services:
       - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
       # Deployment Settings
       - ENVIRONMENT=${ENVIRONMENT}
+      # Qdrant Settings
+      - QDRANT_HOST=http://qdrant:6333
     depends_on:
       migration:
         condition: service_completed_successfully
       db:
         condition: service_healthy
+      qdrant_migration:
+        condition: service_completed_successfully
     command: ["uv", "run", "--no-sync", "python", "-m", "documents.indexer.worker"]
 
   frontend:
@@ -97,7 +110,6 @@ services:
 
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: qdrant
     restart: unless-stopped
     ports:
       - "127.0.0.1:6333:6333"
@@ -107,7 +119,7 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6333/readyz || exit 1"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/readyz"]
       interval: 10s
       timeout: 5s
       retries: 10
