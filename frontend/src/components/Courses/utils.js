@@ -55,3 +55,33 @@ export const createNewBlock = (type) => {
   }
 };
 
+/**
+ * Обрезает текст до указанной длины и добавляет многоточие
+ */
+export const truncateText = (text, maxLength) => {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + '...';
+};
+
+/**
+ * Обрезает markdown текст, удаляя разметку для подсчета длины
+ */
+export const truncateMarkdown = (text, maxLength) => {
+  if (!text) return '';
+  // Простая обрезка markdown - удаляем разметку для подсчета
+  const plainText = text.replace(/[#*_`\[\]()]/g, '').replace(/\n/g, ' ');
+  if (plainText.length <= maxLength) return text;
+  // Находим позицию обрезки в оригинальном тексте
+  let charCount = 0;
+  let i = 0;
+  while (i < text.length && charCount < maxLength) {
+    const char = text[i];
+    if (!/[#*_`\[\]()\n]/.test(char)) {
+      charCount++;
+    }
+    i++;
+  }
+  return text.substring(0, i).trim() + '...';
+};
+

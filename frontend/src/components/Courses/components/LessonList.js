@@ -29,7 +29,7 @@ const LessonList = ({
           <button 
             onClick={onBack} 
             className="courses-back-btn"
-            title="Назад к курсам"
+            title="Назад к курсу"
           >
             ←
           </button>
@@ -84,18 +84,13 @@ const LessonList = ({
               ⋮⋮
             </div>
           )}
-          <div className="courses-item-title" style={{ marginLeft: isCourseAuthor ? '24px' : '0' }}>
+          <div className="courses-item-title">
             {lesson.name}
           </div>
           <div className="courses-item-description">
-            {lesson.description ? (
+            {lesson.description && (
               <ReactMarkdown>{lesson.description}</ReactMarkdown>
-            ) : (
-              <span>Без описания</span>
             )}
-          </div>
-          <div className="courses-item-meta">
-            Позиция: {lesson.position + 1} • Создан: {formatDate(lesson.created_at)}
           </div>
         </div>
       ))}

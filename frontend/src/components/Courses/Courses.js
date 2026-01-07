@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../Sidebar';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,16 +10,17 @@ import { useLessons } from './hooks/useLessons';
 import { useLessonBlocks } from './hooks/useLessonBlocks';
 import CourseLibrary from './components/CourseLibrary';
 import CourseEditForm from './components/CourseEditForm';
+import CourseView from './components/CourseView';
 import LessonList from './components/LessonList';
 import LessonView from './components/LessonView';
 import LessonEditForm from './components/LessonEditForm';
-import LessonsCardsView from './components/LessonsCardsView';
 import GenerateLessonsModal from './components/GenerateLessonsModal';
 
 /**
  * Главный компонент Courses - объединяет все части модуля курсов
  */
 function Courses() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { isSidebarOpen } = useSidebar();
   
@@ -194,6 +196,27 @@ function Courses() {
     }
   };
 
+  // Обработчики для сохранения имени и описания курса
+  const handleSaveCourseName = async () => {
+    try {
+      await coursesHook.handleSaveCourseName();
+      coursesHook.setError(null);
+    } catch (err) {
+      coursesHook.setError('Не удалось сохранить название курса');
+      console.error('Error saving course name:', err);
+    }
+  };
+
+  const handleSaveCourseDescription = async () => {
+    try {
+      await coursesHook.handleSaveCourseDescription();
+      coursesHook.setError(null);
+    } catch (err) {
+      coursesHook.setError('Не удалось сохранить описание курса');
+      console.error('Error saving course description:', err);
+    }
+  };
+
   // Обработчики для сохранения имени и описания урока
   const handleSaveLessonName = async () => {
     try {
@@ -296,6 +319,21 @@ function Courses() {
     }
   };
 
+  // Обработчик возврата (из списка уроков)
+  // Если выбран урок - возврат к странице курса (карточки уроков)
+  // Если урока нет - возврат к странице со всеми курсами
+  const handleBackToCourse = () => {
+    if (lessonsHook.selectedLesson) {
+      // Если выбран урок, возвращаемся к странице курса (карточки уроков)
+      lessonsHook.setSelectedLesson(null);
+      coursesHook.setError(null);
+      navigate(`/courses/${coursesHook.selectedCourse.id}`);
+    } else if (coursesHook.selectedCourse) {
+      // Если урока нет, но есть курс, возвращаемся к списку всех курсов
+      coursesHook.handleBackToCourses();
+    }
+  };
+
   return (
     <>
       <Sidebar />
@@ -307,7 +345,7 @@ function Courses() {
             lessons={lessonsHook.lessons}
             selectedLesson={lessonsHook.selectedLesson}
             isCourseAuthor={authorCheck()}
-            onBack={coursesHook.handleBackToCourses}
+            onBack={handleBackToCourse}
             onCreateLesson={lessonsHook.handleCreateNewLesson}
             onSelectLesson={lessonsHook.handleSelectLesson}
             draggedLessonId={lessonsHook.draggedLessonId}
@@ -331,7 +369,7 @@ function Courses() {
           )}
 
           {/* Библиотека курсов */}
-          {!coursesHook.selectedCourse && !coursesHook.isCreatingCourse && !coursesHook.isEditingCourse && (
+          {!coursesHook.selectedCourse && !coursesHook.isCreatingCourse && !coursesHook.isEditingCourse && !lessonsHook.selectedLesson && (
             <CourseLibrary
               myCourses={coursesHook.myCourses}
               communityCourses={coursesHook.communityCourses}
@@ -427,12 +465,24 @@ function Courses() {
             />
           )}
 
-          {/* Карточки уроков */}
+          {/* Страница курса */}
           {coursesHook.selectedCourse && !lessonsHook.selectedLesson && !coursesHook.isEditingCourse && !lessonsHook.isCreatingLesson && (
-            <LessonsCardsView
-              courseName={coursesHook.selectedCourse.name}
+            <CourseView
+              course={coursesHook.selectedCourse}
               lessons={lessonsHook.lessons}
               isAuthor={authorCheck()}
+              editingCourseName={coursesHook.editingCourseName}
+              editingCourseDescription={coursesHook.editingCourseDescription}
+              tempCourseName={coursesHook.tempCourseName}
+              tempCourseDescription={coursesHook.tempCourseDescription}
+              onStartEditName={() => coursesHook.handleStartEditCourseName(authorCheck())}
+              onSaveName={handleSaveCourseName}
+              onCancelEditName={coursesHook.handleCancelEditCourseName}
+              onNameChange={(e) => coursesHook.setTempCourseName(e.target.value)}
+              onStartEditDescription={() => coursesHook.handleStartEditCourseDescription(authorCheck())}
+              onSaveDescription={handleSaveCourseDescription}
+              onCancelEditDescription={coursesHook.handleCancelEditCourseDescription}
+              onDescriptionChange={(e) => coursesHook.setTempCourseDescription(e.target.value)}
               onSelectLesson={lessonsHook.handleSelectLesson}
               onCreateLesson={lessonsHook.handleCreateNewLesson}
               onGenerateLessons={handleOpenGenerateLessonsModal}

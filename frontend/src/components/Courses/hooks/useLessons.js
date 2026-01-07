@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { lessonsApi } from '../../../services/api';
+import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config';
 
 /**
  * Хук для управления уроками
@@ -55,6 +56,16 @@ export const useLessons = (selectedCourse) => {
   const handleSaveLesson = async () => {
     if (!selectedCourse) return;
     try {
+      // Валидация длины названия
+      if (editedLessonName.trim().length > MAX_NAME_LENGTH) {
+        throw new Error(`Название урока не должно превышать ${MAX_NAME_LENGTH} символов`);
+      }
+      
+      // Валидация длины описания
+      if (editedLessonDescription && editedLessonDescription.length > MAX_DESCRIPTION_LENGTH) {
+        throw new Error(`Описание урока не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`);
+      }
+
       const blocksToSend = editedLessonBlocks.map((block) => {
         const { block_id, ...blockData } = block;
         return blockData;
@@ -63,8 +74,8 @@ export const useLessons = (selectedCourse) => {
       const response = await lessonsApi.create(selectedCourse.id, {
         course_id: selectedCourse.id,
         position: lessons.length,
-        name: editedLessonName,
-        description: editedLessonDescription || null,
+        name: editedLessonName.trim(),
+        description: editedLessonDescription.trim() || null,
         blocks: blocksToSend,
       });
       setSelectedLesson(response.data);
@@ -121,8 +132,13 @@ export const useLessons = (selectedCourse) => {
   const handleSaveLessonName = async () => {
     if (!selectedCourse || !selectedLesson) return;
     try {
+      // Валидация длины названия
+      if (tempLessonName.trim().length > MAX_NAME_LENGTH) {
+        throw new Error(`Название урока не должно превышать ${MAX_NAME_LENGTH} символов`);
+      }
+
       const response = await lessonsApi.update(selectedCourse.id, selectedLesson.id, {
-        name: tempLessonName,
+        name: tempLessonName.trim(),
       });
       setSelectedLesson(response.data);
       setEditingLessonName(false);
@@ -146,8 +162,13 @@ export const useLessons = (selectedCourse) => {
   const handleSaveLessonDescription = async () => {
     if (!selectedCourse || !selectedLesson) return;
     try {
+      // Валидация длины описания
+      if (tempLessonDescription && tempLessonDescription.length > MAX_DESCRIPTION_LENGTH) {
+        throw new Error(`Описание урока не должно превышать ${MAX_DESCRIPTION_LENGTH} символов`);
+      }
+
       const response = await lessonsApi.update(selectedCourse.id, selectedLesson.id, {
-        description: tempLessonDescription || null,
+        description: tempLessonDescription.trim() || null,
       });
       setSelectedLesson(response.data);
       setEditingLessonDescription(false);
@@ -319,13 +340,26 @@ export const useLessons = (selectedCourse) => {
           console.error('Error loading from URL:', err);
         }
       } else {
+        // Очищаем все состояние уроков когда курс не выбран
         setLessons([]);
         setSelectedLesson(null);
+        setIsEditingLesson(false);
+        setIsCreatingLesson(false);
+        setQuestionAnswers({});
+        setCheckedQuestions({});
       }
     };
     
     if (selectedCourse) {
       loadFromUrl();
+    } else {
+      // Если курс не выбран, сразу очищаем состояние
+      setLessons([]);
+      setSelectedLesson(null);
+      setIsEditingLesson(false);
+      setIsCreatingLesson(false);
+      setQuestionAnswers({});
+      setCheckedQuestions({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, lessonId, selectedCourse]);

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import BlockEditor from './blocks/BlockEditor';
 import { createNewBlock } from '../utils';
+import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config';
 
 /**
  * Компонент формы создания/редактирования урока
@@ -44,7 +45,11 @@ const LessonEditForm = ({
             onChange={onNameChange}
             placeholder="Введите название урока"
             className="courses-input"
+            maxLength={MAX_NAME_LENGTH}
           />
+          <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+            {editedLessonName.length}/{MAX_NAME_LENGTH} символов
+          </div>
         </div>
         <div className="courses-form-group">
           <label htmlFor="lesson-description">Описание</label>
@@ -55,7 +60,11 @@ const LessonEditForm = ({
             placeholder="Введите описание урока"
             className="courses-textarea"
             rows="3"
+            maxLength={MAX_DESCRIPTION_LENGTH}
           />
+          <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+            {editedLessonDescription.length}/{MAX_DESCRIPTION_LENGTH} символов
+          </div>
         </div>
 
         {/* Редактор блоков */}

@@ -1,11 +1,17 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { formatDate } from '../utils';
+import { formatDate, truncateText, truncateMarkdown } from '../utils';
+import { MAX_CARD_TITLE_LENGTH, MAX_CARD_DESCRIPTION_LENGTH } from '../config';
 
 /**
  * Компонент карточки курса
  */
 const CourseCard = ({ course, onClick, isMine = false }) => {
+  const truncatedName = truncateText(course.name, MAX_CARD_TITLE_LENGTH);
+  const truncatedDescription = course.description 
+    ? truncateMarkdown(course.description, MAX_CARD_DESCRIPTION_LENGTH)
+    : null;
+
   return (
     <div
       className="course-card"
@@ -17,10 +23,12 @@ const CourseCard = ({ course, onClick, isMine = false }) => {
         </span>
         <span>{formatDate(course.created_at) || '—'}</span>
       </div>
-      <h3 className="course-card-title">{course.name}</h3>
+      <h3 className="course-card-title" title={course.name}>
+        {truncatedName}
+      </h3>
       <div className="course-card-description">
-        {course.description ? (
-          <ReactMarkdown>{course.description}</ReactMarkdown>
+        {truncatedDescription ? (
+          <ReactMarkdown>{truncatedDescription}</ReactMarkdown>
         ) : (
           <p>Без описания</p>
         )}

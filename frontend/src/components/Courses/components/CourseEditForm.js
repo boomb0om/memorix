@@ -1,4 +1,5 @@
 import React from 'react';
+import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config';
 
 /**
  * Компонент формы редактирования курса
@@ -37,7 +38,11 @@ const CourseEditForm = ({
             onChange={onNameChange}
             placeholder="Введите название курса"
             className="courses-input"
+            maxLength={MAX_NAME_LENGTH}
           />
+          <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+            {editedCourseName.length}/{MAX_NAME_LENGTH} символов
+          </div>
         </div>
         <div className="courses-form-group">
           <label htmlFor="course-description">Описание</label>
@@ -48,7 +53,11 @@ const CourseEditForm = ({
             placeholder="Введите описание курса"
             className="courses-textarea"
             rows="10"
+            maxLength={MAX_DESCRIPTION_LENGTH}
           />
+          <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+            {editedCourseDescription.length}/{MAX_DESCRIPTION_LENGTH} символов
+          </div>
         </div>
         {!isCreating && onGenerateLessons && (
           <div className="courses-form-group">

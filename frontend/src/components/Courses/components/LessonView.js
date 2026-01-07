@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { formatDate } from '../utils';
+import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config';
 import TheoryBlock from './blocks/TheoryBlock';
 import CodeBlock from './blocks/CodeBlock';
 import NoteBlock from './blocks/NoteBlock';
@@ -180,22 +181,28 @@ const LessonView = ({
       <div className="courses-view-header">
         <div>
           {editingLessonName ? (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input
-                type="text"
-                value={tempLessonName}
-                onChange={onNameChange}
-                className="courses-input"
-                style={{ fontSize: '2em', fontWeight: 'bold', padding: '8px' }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    onSaveName();
-                  } else if (e.key === 'Escape') {
-                    onCancelEditName();
-                  }
-                }}
-                autoFocus
-              />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <input
+                  type="text"
+                  value={tempLessonName}
+                  onChange={onNameChange}
+                  className="courses-input"
+                  style={{ fontSize: '2em', fontWeight: 'bold', padding: '8px', width: '100%' }}
+                  maxLength={MAX_NAME_LENGTH}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      onSaveName();
+                    } else if (e.key === 'Escape') {
+                      onCancelEditName();
+                    }
+                  }}
+                  autoFocus
+                />
+                <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+                  {tempLessonName.length}/{MAX_NAME_LENGTH} символов
+                </div>
+              </div>
               <button onClick={onSaveName} className="courses-btn courses-btn-primary" style={{ padding: '8px 16px' }}>
                 ✓
               </button>
@@ -239,6 +246,7 @@ const LessonView = ({
               onChange={onDescriptionChange}
               className="courses-textarea"
               rows="5"
+              maxLength={MAX_DESCRIPTION_LENGTH}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   onCancelEditDescription();
@@ -246,6 +254,9 @@ const LessonView = ({
               }}
               autoFocus
             />
+            <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+              {tempLessonDescription.length}/{MAX_DESCRIPTION_LENGTH} символов
+            </div>
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
               <button onClick={onSaveDescription} className="courses-btn courses-btn-primary">
                 Сохранить
