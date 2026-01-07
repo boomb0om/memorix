@@ -20,14 +20,6 @@ async def create_user(db: AsyncSession, user_data: UserCreate):
             detail="Email already registered"
         )
     
-    # Проверяем, существует ли пользователь с таким username
-    existing_user = await UserDAO.get_by_username(db, user_data.username)
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Username already taken"
-        )
-    
     # Создаем пользователя
     hashed_password = hash_password(user_data.password)
     return await UserDAO.create(

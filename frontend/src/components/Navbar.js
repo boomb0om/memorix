@@ -28,17 +28,7 @@ function Navbar() {
         <h1 className="navbar-logo" onClick={handleLogoClick} style={{ cursor: 'pointer' }}>Memorix</h1>
       </div>
       
-      <div className="navbar-right">
-        <div className="navbar-notifications">
-          <span className="notification-icon">🔔</span>
-          <span className="notification-badge">3</span>
-        </div>
-        
-        <div className="navbar-language">
-          <span className="language-flag">🇷🇺</span>
-          <span className="language-text">{language}</span>
-        </div>
-        
+      <div className="navbar-right">        
         <div className="navbar-profile" onClick={handleProfileClick}>
           <img 
             src={`https://ui-avatars.com/api/?name=${user.username}&background=667eea&color=fff`}
