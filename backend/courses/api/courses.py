@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import courses.service.courses as course_service
+import courses.service.course_analysis as course_analysis_service
 from courses.api.block_generation import router as block_generation_router
 from courses.api.lesson_generation import router as lesson_generation_router
 from courses.api.lessons import router as lessons_router
@@ -25,9 +26,7 @@ router.include_router(lesson_generation_router)
 
 @router.post("", response_model=CourseResponse, status_code=201)
 async def create_course(
-    course: CourseCreate,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
+    course: CourseCreate, request: Request, db: AsyncSession = Depends(get_db)
 ):
     """Создать новый курс"""
     user_id = request.state.user_id
@@ -35,20 +34,14 @@ async def create_course(
 
 
 @router.get("", response_model=list[CourseResponse])
-async def get_user_courses(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_user_courses(request: Request, db: AsyncSession = Depends(get_db)):
     """Получить все доступные курсы пользователя"""
     user_id = request.state.user_id
     return await course_service.get_user_courses(db, user_id)
 
 
 @router.get("/my", response_model=list[CourseResponse])
-async def get_my_courses(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_my_courses(request: Request, db: AsyncSession = Depends(get_db)):
     """Получить курсы, созданные пользователем"""
     user_id = request.state.user_id
     return await course_service.get_my_courses(db, user_id)
@@ -58,7 +51,7 @@ async def get_my_courses(
 async def search_courses(
     request: Request,
     query: str = Query(..., min_length=1, max_length=200, description="Строка поиска"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Поиск курсов по названию и описанию"""
     user_id = request.state.user_id
@@ -67,9 +60,7 @@ async def search_courses(
 
 @router.get("/{course_id}", response_model=CourseResponse)
 async def get_course(
-    course_id: int,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
+    course_id: int, request: Request, db: AsyncSession = Depends(get_db)
 ):
     """Получить курс по ID"""
     user_id = request.state.user_id
@@ -78,14 +69,12 @@ async def get_course(
 
 @router.get("/{course_id}/with-lessons", response_model=CourseWithLessons)
 async def get_course_with_lessons(
-    course_id: int,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
+    course_id: int, request: Request, db: AsyncSession = Depends(get_db)
 ):
     """Получить курс с уроками"""
     user_id = request.state.user_id
     course = await course_service.get_course_with_lessons(db, course_id, user_id)
-    
+
     # Преобразуем в нужный формат
     return CourseWithLessons(
         id=course.id,
@@ -101,10 +90,10 @@ async def get_course_with_lessons(
                 position=lesson.position,
                 name=lesson.name,
                 description=lesson.description,
-                created_at=lesson.created_at
+                created_at=lesson.created_at,
             )
             for lesson in course.lessons
-        ]
+        ],
     )
 
 
@@ -113,7 +102,7 @@ async def update_course(
     course_id: int,
     course_update: CourseUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Обновить курс"""
     user_id = request.state.user_id
@@ -122,9 +111,7 @@ async def update_course(
 
 @router.delete("/{course_id}")
 async def delete_course(
-    course_id: int,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
+    course_id: int, request: Request, db: AsyncSession = Depends(get_db)
 ):
     """Удалить курс"""
     user_id = request.state.user_id
@@ -136,13 +123,13 @@ async def generate_lessons(
     course_id: int,
     request: Request,
     request_data: GenerateLessonsRequest | None = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Сгенерировать план уроков для курса"""
     user_id = request.state.user_id
     if request_data is None:
         request_data = GenerateLessonsRequest()
-    
+
     return await course_service.generate_lessons_plan(
         db,
         course_id,
@@ -151,6 +138,22 @@ async def generate_lessons(
         start_knowledge=request_data.start_knowledge,
         target_knowledge=request_data.target_knowledge,
         target_audience=request_data.target_audience,
-        topics=request_data.topics
+        topics=request_data.topics,
     )
 
+
+@router.post("/{course_id}/analyze")
+async def analyze_course_methodology(
+    course_id: int, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Проанализировать курс с точки зрения методологии обучения
+
+    Возвращает текстовый отчёт с рекомендациями по улучшению курса.
+    """
+    user_id = request.state.user_id
+
+    report = await course_analysis_service.analyze_course_methodology(
+        db, course_id, user_id
+    )
+
+    return {"report": report}
