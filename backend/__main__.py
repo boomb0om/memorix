@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_app():
-    app = FastAPI(title="Memorix API", version="1.0.0")
+    app = FastAPI(title="Memorix API", version="1.0.0", docs_url="/api/docs")
     
     app.add_middleware(
         CORSMiddleware,
