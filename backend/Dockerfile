@@ -5,6 +5,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libgdk-pixbuf-xlib-2.0-0 \
+    libffi-dev \
+    shared-mime-info \
  && rm -rf /var/lib/apt/lists/*
 
 # Установка uv
@@ -24,4 +30,4 @@ COPY . .
 EXPOSE 8000
 
 # Запускаем напрямую через uv run без пересоздания окружения
-CMD ["uv", "run", "--no-sync", "uvicorn", "__main__:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--no-sync", "__main__:app", "--host", "0.0.0.0", "--port", "8000"]

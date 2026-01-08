@@ -1,9 +1,11 @@
+from urllib.parse import quote
+
 from core.db import get_db
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import courses.service.courses as course_service
 import courses.service.course_analysis as course_analysis_service
+import courses.service.courses as course_service
 from courses.api.block_generation import router as block_generation_router
 from courses.api.lesson_generation import router as lesson_generation_router
 from courses.api.lessons import router as lessons_router
@@ -13,6 +15,7 @@ from courses.schema import (
     CourseSearchResponse,
     CourseUpdate,
     CourseWithLessons,
+    ExportCourseRequest,
     GenerateLessonsRequest,
     LessonListItem,
 )
@@ -157,3 +160,29 @@ async def analyze_course_methodology(
     )
 
     return {"report": report}
+
+
+@router.post("/{course_id}/export")
+async def export_course(
+    course_id: int,
+    export_request: ExportCourseRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Экспортировать курс в формате Markdown или PDF"""
+    from courses.service import course_export as export_service
+
+    user_id = request.state.user_id
+
+    content_bytes, content_type, filename = await export_service.export_course(
+        db, course_id, user_id, export_request.format
+    )
+    filename_encoded = quote(filename)
+
+    return Response(
+        content=content_bytes,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename_encoded}"
+        },
+    )
