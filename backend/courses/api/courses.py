@@ -15,10 +15,10 @@ from courses.schema import (
     CourseSearchResponse,
     CourseUpdate,
     CourseWithLessons,
-    ExportCourseRequest,
     GenerateLessonsRequest,
     LessonListItem,
 )
+from courses.service import course_export as export_service
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
@@ -165,17 +165,14 @@ async def analyze_course_methodology(
 @router.post("/{course_id}/export")
 async def export_course(
     course_id: int,
-    export_request: ExportCourseRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Экспортировать курс в формате Markdown или PDF"""
-    from courses.service import course_export as export_service
-
     user_id = request.state.user_id
 
     content_bytes, content_type, filename = await export_service.export_course(
-        db, course_id, user_id, export_request.format
+        db, course_id, user_id
     )
     filename_encoded = quote(filename)
 

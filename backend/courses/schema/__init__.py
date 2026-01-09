@@ -21,7 +21,6 @@ from .courses import (
     CourseWithLessons,
     CourseDetailResponse,
     GenerateLessonsRequest,
-    ExportCourseRequest,
     CourseSearchResponse,
 )
 
@@ -47,6 +46,5 @@ __all__ = [
     "CourseWithLessons",
     "CourseDetailResponse",
     "GenerateLessonsRequest",
-    "ExportCourseRequest",
     "CourseSearchResponse",
 ]

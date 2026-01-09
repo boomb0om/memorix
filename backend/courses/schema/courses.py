@@ -51,8 +51,3 @@ class GenerateLessonsRequest(BaseModel):
     target_knowledge: str | None = Field(default=None, description="Конечные знания")
     target_audience: str | None = Field(default=None, description="Целевая аудитория")
     topics: list[str] | None = Field(default=None, description="Темы, которые нужно включить")
-
-
-class ExportCourseRequest(BaseModel):
-    """Схема для запроса экспорта курса"""
-    format: str = Field(description="Формат экспорта: 'markdown' или 'pdf'", pattern="^(markdown|pdf)$")

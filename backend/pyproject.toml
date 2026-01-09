@@ -25,7 +25,6 @@ dependencies = [
     "sqlalchemy[asyncio]==2.0.23",
     "uvicorn[standard]==0.24.0",
     "markdown>=3.5.0",
-    "weasyprint>=60.0",
 ]
 
 [dependency-groups]
