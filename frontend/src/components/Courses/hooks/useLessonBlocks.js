@@ -72,16 +72,31 @@ export const useLessonBlocks = (selectedCourse, selectedLesson, setSelectedLesso
     }
   };
 
-  const handleAddBlock = async (type) => {
+  const handleAddBlock = async (type, position = null) => {
     if (!selectedCourse || !selectedLesson) return;
     
     const newBlock = createNewBlock(type);
     if (!newBlock) return;
     
     try {
-      const response = await lessonsApi.addBlock(selectedCourse.id, selectedLesson.id, newBlock);
+      // Явно передаем position, даже если он равен 0 (0 - это валидная позиция)
+      // Если position === null или undefined, передаем null
+      const positionToSend = (position === null || position === undefined) ? null : position;
+      
+      const response = await lessonsApi.addBlock(
+        selectedCourse.id, 
+        selectedLesson.id, 
+        newBlock, 
+        positionToSend
+      );
       setSelectedLesson(response.data);
-      const newBlockId = response.data.blocks[response.data.blocks.length - 1]?.block_id;
+      // Находим новый блок по позиции или берем последний
+      let newBlockId;
+      if (positionToSend !== null && positionToSend < response.data.blocks.length) {
+        newBlockId = response.data.blocks[positionToSend]?.block_id;
+      } else {
+        newBlockId = response.data.blocks[response.data.blocks.length - 1]?.block_id;
+      }
       if (newBlockId) {
         setEditingBlockId(newBlockId);
         setEditingBlockData({ ...newBlock, block_id: newBlockId });

@@ -7,6 +7,7 @@ from .blocks import (
     NoteBlock,
     LessonBlock,
     LessonContent,
+    AddBlockRequest,
 )
 from .lessons import (
     LessonCreate,

@@ -267,9 +267,9 @@ function Courses() {
     }
   };
 
-  const handleAddBlock = async (type) => {
+  const handleAddBlock = async (type, position = null) => {
     try {
-      await blocksHook.handleAddBlock(type);
+      await blocksHook.handleAddBlock(type, position);
       coursesHook.setError(null);
     } catch (err) {
       coursesHook.setError('Не удалось добавить блок');

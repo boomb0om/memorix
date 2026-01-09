@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { formatDate } from '../utils';
 import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config';
@@ -59,6 +59,13 @@ const LessonView = ({
   onGenerateBlock,
   isGeneratingBlock,
 }) => {
+  const [hoveredGapIndex, setHoveredGapIndex] = useState(null);
+
+  const handleAddBlockWithPosition = async (type, position = null) => {
+    setHoveredGapIndex(null);
+    await onAddBlock(type, position);
+  };
+
   const renderBlock = (block, index) => {
     const canDrag = isAuthor && block.block_id && editingBlockId !== block.block_id;
     
@@ -111,7 +118,8 @@ const LessonView = ({
         style={{
           cursor: canDrag ? 'grab' : 'default',
           opacity: draggedBlockId === block.block_id ? 0.5 : 1,
-          position: 'relative'
+          position: 'relative',
+          marginBottom: isAuthor ? '0' : undefined
         }}
       >
         {isAuthor && block.block_id && editingBlockId !== block.block_id && (
@@ -341,27 +349,114 @@ const LessonView = ({
         {lesson.blocks && lesson.blocks.length > 0 && (
           <>
             <h3>Содержимое урока</h3>
-            {isAuthor && (
-              <div className="lesson-blocks-add-menu" style={{ marginBottom: '16px' }}>
-                <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('theory')}>
-                  + Теория
-                </button>
-                <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('code')}>
-                  + Код
-                </button>
-                <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('note')}>
-                  + Заметка
-                </button>
-                <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('single_choice')}>
-                  + Вопрос (один ответ)
-                </button>
-                <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('multiple_choice')}>
-                  + Вопрос (несколько ответов)
-                </button>
-              </div>
-            )}
-            <div className="lesson-blocks">
-              {lesson.blocks.map((block, index) => renderBlock(block, index))}
+            <div className="lesson-blocks" style={{ gap: isAuthor ? '0' : undefined, marginTop: isAuthor ? '0' : undefined}}>
+              {lesson.blocks.map((block, index) => (
+                <React.Fragment key={block.block_id || index}>
+                  {/* Кнопки добавления перед блоком */}
+                  {isAuthor && (
+                    <div
+                      className="lesson-block-gap"
+                      style={{
+                        position: 'relative',
+                        minHeight: hoveredGapIndex === index ? '50px' : '28px',
+                        margin: '2px',
+                        transition: 'min-height 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      onMouseEnter={() => setHoveredGapIndex(index)}
+                      onMouseLeave={() => setHoveredGapIndex(null)}
+                    >
+                      {hoveredGapIndex === index && (
+                        <div
+                          className="lesson-blocks-add-menu"
+                          style={{
+                            display: 'flex',
+                            gap: '8px',
+                            flexWrap: 'wrap',
+                            justifyContent: 'center',
+                            padding: '8px',
+                            background: '#f9f9f9',
+                            borderRadius: '8px',
+                            border: '2px dashed #ccc',
+                            zIndex: 10
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('theory', index)}>
+                            + Теория
+                          </button>
+                          <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('code', index)}>
+                            + Код
+                          </button>
+                          <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('note', index)}>
+                            + Заметка
+                          </button>
+                          <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('single_choice', index)}>
+                            + Вопрос (один ответ)
+                          </button>
+                          <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('multiple_choice', index)}>
+                            + Вопрос (несколько ответов)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {renderBlock(block, index)}
+                </React.Fragment>
+              ))}
+              {/* Кнопки добавления после последнего блока */}
+              {isAuthor && (
+                <div
+                  className="lesson-block-gap"
+                  style={{
+                    position: 'relative',
+                    minHeight: hoveredGapIndex === lesson.blocks.length ? '50px' : '28px',
+                    margin: '2px',
+                    transition: 'min-height 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={() => setHoveredGapIndex(lesson.blocks.length)}
+                  onMouseLeave={() => setHoveredGapIndex(null)}
+                >
+                  {hoveredGapIndex === lesson.blocks.length && (
+                    <div
+                      className="lesson-blocks-add-menu"
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
+                        padding: '8px',
+                        background: '#f9f9f9',
+                        borderRadius: '8px',
+                        border: '2px dashed #ccc',
+                        zIndex: 10
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('theory', lesson.blocks.length)}>
+                        + Теория
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('code', lesson.blocks.length)}>
+                        + Код
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('note', lesson.blocks.length)}>
+                        + Заметка
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('single_choice', lesson.blocks.length)}>
+                        + Вопрос (один ответ)
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('multiple_choice', lesson.blocks.length)}>
+                        + Вопрос (несколько ответов)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}

@@ -201,7 +201,15 @@ export const lessonsApi = {
   reorderBlock: (courseId, lessonId, blockId, newPosition) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}/reorder`, { new_position: newPosition }),
   
   // Добавить новый блок к уроку
-  addBlock: (courseId, lessonId, blockData) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks`, blockData),
+  addBlock: (courseId, lessonId, blockData, position = null) => {
+    const payload = { block: blockData };
+    // Явно передаем position, даже если он равен 0 (0 - это валидная позиция)
+    // Если position === null или undefined, не включаем его в payload
+    if (position !== null && position !== undefined) {
+      payload.position = position;
+    }
+    return api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks`, payload);
+  },
   
   // Удалить блок из урока
   deleteBlock: (courseId, lessonId, blockId) => api.delete(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}`),

@@ -1,6 +1,6 @@
 from typing import Literal, Union
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # Базовый класс для всех блоков
@@ -217,3 +217,21 @@ class GenerateLessonBlockContentResponse(BaseModel):
     """Схема ответа со сгенерированным контентом блока урока"""
 
     block: LessonBlock = Field(description="Сгенерированный блок урока")
+
+
+class AddBlockRequest(BaseModel):
+    """Схема для добавления блока с указанием позиции"""
+    block: LessonBlock = Field(description="Данные блока")
+    position: int | None = Field(default=None, description="Позиция для вставки блока (None - добавить в конец)")
+    
+    @field_validator('position')
+    @classmethod
+    def validate_position(cls, v):
+        # Явно проверяем, что position либо None, либо неотрицательное число
+        # 0 - это валидная позиция (вставка в начало)
+        if v is not None:
+            if not isinstance(v, int):
+                raise ValueError('Position must be an integer')
+            if v < 0:
+                raise ValueError('Position must be >= 0')
+        return v

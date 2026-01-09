@@ -121,4 +121,45 @@ class LessonDAO:
         )
         max_position = result.scalar_one_or_none()
         return (max_position + 1) if max_position is not None else 0
+    
+    @classmethod
+    async def shift_positions_bulk(
+        cls,
+        session: AsyncSession,
+        course_id: int,
+        from_position: int,
+        to_position: int,
+        offset: int
+    ) -> None:
+        """
+        Массово сдвинуть позиции уроков, избегая конфликтов уникального ограничения
+        
+        Args:
+            session: Сессия БД
+            course_id: ID курса
+            from_position: Начальная позиция (включительно)
+            to_position: Конечная позиция (включительно)
+            offset: На сколько сдвинуть (положительное - вправо, отрицательное - влево)
+        """
+        # Двухшаговый подход для избежания конфликтов уникального ограничения:
+        # 1. Сдвигаем в отрицательную зону с большим смещением (временные позиции)
+        # 2. Возвращаем в положительную зону с нужным смещением
+        
+        # Используем большое отрицательное число как базу для временных позиций
+        TEMP_OFFSET = 10000
+        
+        # Шаг 1: Сдвигаем в отрицательную зону с большим смещением
+        stmt1 = update(Lesson).where(
+            Lesson.course_id == course_id,
+            Lesson.position >= from_position,
+            Lesson.position <= to_position
+        ).values(position=-(Lesson.position + TEMP_OFFSET))
+        await session.execute(stmt1)
+        
+        # Шаг 2: Возвращаем в положительную зону с нужным смещением
+        stmt2 = update(Lesson).where(
+            Lesson.course_id == course_id,
+            Lesson.position < 0
+        ).values(position=-Lesson.position - TEMP_OFFSET + offset)
+        await session.execute(stmt2)
 

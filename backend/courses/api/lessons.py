@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
 from courses.schema import LessonCreate, LessonUpdate, LessonResponse, LessonListItem
-from courses.schema.blocks import LessonBlock
+from courses.schema.blocks import LessonBlock, AddBlockRequest
 from pydantic import BaseModel, Field
 from uuid import UUID
 import courses.service.lessons as lesson_service
@@ -156,7 +156,7 @@ async def reorder_block(
 async def add_block(
     course_id: int,
     lesson_id: int,
-    block: LessonBlock,
+    add_request: AddBlockRequest,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
@@ -165,14 +165,15 @@ async def add_block(
     await lesson_service.verify_lesson_belongs_to_course(db, lesson_id, course_id, user_id)
     
     # Конвертируем блок в словарь
-    block_dict = block.model_dump(exclude={"block_id"})
-    block_dict["type"] = block.type
+    block_dict = add_request.block.model_dump(exclude={"block_id"})
+    block_dict["type"] = add_request.block.type
     
     return await lesson_service.add_block_to_lesson(
         db,
         lesson_id,
         block_dict,
-        user_id
+        user_id,
+        position=add_request.position
     )
 
 

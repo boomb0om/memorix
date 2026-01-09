@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from courses.schema import LessonCreate, LessonUpdate, LessonResponse, LessonListItem
 from courses.dao import CourseDAO, LessonDAO, LessonBlockDAO, UserQuestionAnswerDAO
-from courses.dao.models import Lesson
+from courses.dao.models import Lesson, LessonBlock
 from courses.service.access_control import ensure_course_access
 from courses.schema.blocks import block_schema_to_dict, db_block_to_schema
 
@@ -94,7 +94,9 @@ def convert_blocks_for_response(lesson, is_author: bool = True):
     """
     blocks = []
     if lesson.blocks:
-        for db_block in lesson.blocks:
+        # Явно сортируем блоки по позиции
+        sorted_blocks = sorted(lesson.blocks, key=lambda b: b.position)
+        for db_block in sorted_blocks:
             block_dict = db_block_to_schema(db_block)
             
             # Если пользователь не автор, всегда скрываем правильные ответы
@@ -317,32 +319,30 @@ async def reorder_lesson(
             detail=f"Position {new_position} is out of range. Valid range: 0-{max_position + 1}"
         )
     
-    # Создаем временную позицию для избежания конфликтов
-    # Используем отрицательное значение, которое точно не конфликтует
+    # Сначала перемещаем текущий урок во временную позицию, чтобы избежать конфликтов
     temp_position = -1
     await LessonDAO.update_in_transaction(db, lesson_id, position=temp_position)
     await db.flush()
     
-    # Перезагружаем уроки после перемещения во временную позицию
-    all_lessons = await LessonDAO.get_all_by_course(db, lesson.course_id)
-    
-    # Сдвигаем остальные уроки
+    # Сдвигаем уроки одним запросом
     if new_position < old_position:
-        # Сдвигаем вправо (увеличиваем позиции)
-        # Важно: делаем это в порядке УБЫВАНИЯ позиций, чтобы избежать конфликтов
-        lessons_to_shift = [l for l in all_lessons 
-                           if old_position > l.position >= new_position and l.id != lesson_id]
-        lessons_to_shift.sort(key=lambda x: x.position, reverse=True)
-        for l in lessons_to_shift:
-            await LessonDAO.update_in_transaction(db, l.id, position=l.position + 1)
+        # Перемещение влево: сдвигаем уроки между new_position и old_position вправо
+        await LessonDAO.shift_positions_bulk(
+            db,
+            course_id=lesson.course_id,
+            from_position=new_position,
+            to_position=old_position - 1,
+            offset=1
+        )
     else:
-        # Сдвигаем влево (уменьшаем позиции)
-        # Важно: делаем это в порядке ВОЗРАСТАНИЯ позиций, чтобы избежать конфликтов
-        lessons_to_shift = [l for l in all_lessons 
-                           if old_position < l.position <= new_position and l.id != lesson_id]
-        lessons_to_shift.sort(key=lambda x: x.position)
-        for l in lessons_to_shift:
-            await LessonDAO.update_in_transaction(db, l.id, position=l.position - 1)
+        # Перемещение вправо: сдвигаем уроки между old_position и new_position влево
+        await LessonDAO.shift_positions_bulk(
+            db,
+            course_id=lesson.course_id,
+            from_position=old_position + 1,
+            to_position=new_position,
+            offset=-1
+        )
     
     await db.flush()
     
@@ -373,7 +373,8 @@ async def add_block_to_lesson(
     db: AsyncSession,
     lesson_id: int,
     block_data: dict,
-    user_id: int
+    user_id: int,
+    position: int | None = None
 ) -> LessonResponse:
     """Добавить новый блок к уроку"""
     lesson = await LessonDAO.get_by_id(db, lesson_id)
@@ -383,11 +384,26 @@ async def add_block_to_lesson(
     # Проверка, что пользователь - автор курса
     await ensure_course_access(db, lesson.course_id, user_id, require_author=True)
     
-    # Получаем текущие блоки урока
-    existing_blocks = await LessonBlockDAO.get_all_by_lesson(db, lesson_id)
-    
-    # Определяем следующую позицию
-    next_position = len(existing_blocks)
+    if position is None:
+        # Если позиция не указана, используем следующую доступную позицию
+        insert_position = await LessonBlockDAO.get_next_position(db, lesson_id)
+    else:
+        # Проверяем валидность позиции
+        max_position = await LessonBlockDAO.get_next_position(db, lesson_id)
+        if position < 0 or position > max_position:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Position {position} is out of range. Valid range: 0-{max_position}"
+            )
+        insert_position = position
+        
+        # Сдвигаем существующие блоки вправо одним запросом
+        await LessonBlockDAO.shift_positions_bulk(
+            db,
+            lesson_id=lesson_id,
+            from_position=insert_position,
+            offset=1
+        )
     
     # Извлекаем тип блока
     block_type = block_data.pop("type")
@@ -396,7 +412,7 @@ async def add_block_to_lesson(
     await LessonBlockDAO.create(
         db,
         lesson_id=lesson_id,
-        position=next_position,
+        position=insert_position,
         block_type=block_type,
         data=block_data
     )
@@ -507,15 +523,18 @@ async def delete_block(
     if block.lesson_id != lesson_id:
         raise HTTPException(status_code=404, detail="Block does not belong to this lesson")
     
+    deleted_position = block.position
+    
     # Удаляем блок
     await LessonBlockDAO.delete(db, block_id)
     
-    # Обновляем позиции оставшихся блоков
-    remaining_blocks = await LessonBlockDAO.get_all_by_lesson(db, lesson_id)
-    # Сортируем по позиции и перенумеровываем с 0
-    sorted_blocks = sorted(remaining_blocks, key=lambda b: b.position)
-    for index, remaining_block in enumerate(sorted_blocks):
-        await LessonBlockDAO.update_in_transaction(db, remaining_block.id, position=index)
+    # Сдвигаем позиции блоков, которые были после удаленного, влево одним запросом
+    await LessonBlockDAO.shift_positions_bulk(
+        db,
+        lesson_id=lesson_id,
+        from_position=deleted_position + 1,
+        offset=-1
+    )
     
     await db.commit()
     
@@ -687,32 +706,30 @@ async def reorder_block(
             detail=f"Position {new_position} is out of range. Valid range: 0-{max_position}"
         )
     
-    # Создаем временную позицию для избежания конфликтов
-    # Используем отрицательное значение, которое точно не конфликтует
+    # Сначала перемещаем текущий блок во временную позицию, чтобы избежать конфликтов
     temp_position = -1
     await LessonBlockDAO.update_in_transaction(db, block_id, position=temp_position)
     await db.flush()
     
-    # Перезагружаем блоки после перемещения во временную позицию
-    all_blocks = await LessonBlockDAO.get_all_by_lesson(db, lesson_id)
-    
-    # Сдвигаем остальные блоки
+    # Сдвигаем блоки одним запросом
     if new_position < old_position:
-        # Сдвигаем вправо (увеличиваем позиции)
-        # Важно: делаем это в порядке УБЫВАНИЯ позиций, чтобы избежать конфликтов
-        blocks_to_shift = [b for b in all_blocks 
-                          if old_position > b.position >= new_position and b.id != block_id]
-        blocks_to_shift.sort(key=lambda x: x.position, reverse=True)
-        for b in blocks_to_shift:
-            await LessonBlockDAO.update_in_transaction(db, b.id, position=b.position + 1)
+        # Перемещение влево: сдвигаем блоки между new_position и old_position вправо
+        await LessonBlockDAO.shift_positions_bulk(
+            db,
+            lesson_id=lesson_id,
+            from_position=new_position,
+            offset=1,
+            to_position=old_position - 1
+        )
     else:
-        # Сдвигаем влево (уменьшаем позиции)
-        # Важно: делаем это в порядке ВОЗРАСТАНИЯ позиций, чтобы избежать конфликтов
-        blocks_to_shift = [b for b in all_blocks 
-                          if old_position < b.position <= new_position and b.id != block_id]
-        blocks_to_shift.sort(key=lambda x: x.position)
-        for b in blocks_to_shift:
-            await LessonBlockDAO.update_in_transaction(db, b.id, position=b.position - 1)
+        # Перемещение вправо: сдвигаем блоки между old_position и new_position влево
+        await LessonBlockDAO.shift_positions_bulk(
+            db,
+            lesson_id=lesson_id,
+            from_position=old_position + 1,
+            offset=-1,
+            to_position=new_position
+        )
     
     await db.flush()
     

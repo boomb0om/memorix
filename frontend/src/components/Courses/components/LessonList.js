@@ -35,11 +35,6 @@ const LessonList = ({
           </button>
           <h2>{courseName}</h2>
         </div>
-        {isCourseAuthor && lessons.length > 0 && (
-          <button onClick={onCreateLesson} className="courses-create-btn">
-            + Создать урок
-          </button>
-        )}
       </div>
       
       {lessons.length === 0 && (
