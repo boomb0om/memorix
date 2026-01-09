@@ -19,8 +19,6 @@ async def generate_lesson_block_content(
     user_id: int,
     user_request: str | None = None,
     context: str | None = None,
-    goal: str | None = None,
-    focus_points: list[str] | None = None,
 ) -> LessonBlock:
     """Сгенерировать или переформулировать контент для одного блока урока."""
     # Проверяем, что пользователь является автором курса
@@ -89,8 +87,6 @@ async def generate_lesson_block_content(
         lesson_description=lesson.description,
         user_request=user_request,
         context=context,
-        goal=goal,
-        focus_points=focus_points,
         previous_block=previous_block_dict,
         current_block=current_block_dict,
         next_block=next_block_dict,

@@ -211,6 +211,9 @@ export const lessonsApi = {
   
   // Сгенерировать контент урока
   generateContent: (courseId, lessonId, data) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/generate-content`, data || {}),
+  
+  // Сгенерировать или переформулировать контент блока урока
+  generateBlockContent: (courseId, lessonId, blockId, data) => api.post(`/api/courses/${courseId}/lessons/${lessonId}/blocks/${blockId}/generate-content`, data || {}),
 };
 
 // API для работы с документами

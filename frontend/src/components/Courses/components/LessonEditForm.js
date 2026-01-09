@@ -21,6 +21,8 @@ const LessonEditForm = ({
   onDeleteBlock,
   onMoveBlock,
   onSetEditingBlockIndex,
+  courseId,
+  lessonId,
 }) => {
   return (
     <div className="courses-edit">
@@ -152,6 +154,10 @@ const LessonEditForm = ({
                       }}
                       onSave={() => onSetEditingBlockIndex(null)}
                       onCancel={() => onSetEditingBlockIndex(null)}
+                      courseId={courseId}
+                      lessonId={lessonId}
+                      onGenerateBlock={null}
+                      isGeneratingBlock={false}
                     />
                   )}
 

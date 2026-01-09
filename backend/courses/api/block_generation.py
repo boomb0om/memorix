@@ -37,8 +37,6 @@ async def generate_block_content(
         user_id=user_id,
         user_request=generate_request.user_request,
         context=generate_request.context,
-        goal=generate_request.goal,
-        focus_points=generate_request.focus_points,
     )
 
     return GenerateLessonBlockContentResponse(block=block)

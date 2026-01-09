@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 /**
  * Компонент редактора блока урока
@@ -11,10 +11,50 @@ const BlockEditor = ({
   onRemoveOption,
   onSave,
   onCancel,
+  courseId,
+  lessonId,
+  onGenerateBlock,
+  isGeneratingBlock,
 }) => {
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generateMode, setGenerateMode] = useState(null); // 'generate' or 'reformulate'
+  const [userRequest, setUserRequest] = useState('');
+  const [context, setContext] = useState('');
+
   const handleUpdateData = (field, value) => {
     onUpdateData(field, value);
   };
+
+  const handleOpenGenerateModal = (mode) => {
+    setGenerateMode(mode);
+    setUserRequest('');
+    setContext('');
+    setShowGenerateModal(true);
+  };
+
+  const handleCloseGenerateModal = () => {
+    setShowGenerateModal(false);
+    setGenerateMode(null);
+    setUserRequest('');
+    setContext('');
+  };
+
+  const handleGenerate = async () => {
+    if (!onGenerateBlock) return;
+    
+    try {
+      await onGenerateBlock({
+        user_request: userRequest.trim() || null,
+        context: context.trim() || null,
+      });
+      handleCloseGenerateModal();
+    } catch (error) {
+      console.error('Error generating block:', error);
+      // Ошибка обрабатывается в родительском компоненте
+    }
+  };
+
+  const canGenerate = blockData.block_id && courseId && lessonId && onGenerateBlock;
 
   return (
     <div className="lesson-block-edit-form">
@@ -253,6 +293,27 @@ const BlockEditor = ({
         </>
       )}
 
+      {canGenerate && (
+        <div style={{ display: 'flex', gap: '8px', marginTop: '16px', marginBottom: '8px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
+          <button 
+            onClick={() => handleOpenGenerateModal('generate')} 
+            className="courses-btn courses-btn-secondary"
+            disabled={isGeneratingBlock}
+            style={{ flex: 1 }}
+          >
+            ✨ Сгенерировать контент
+          </button>
+          <button 
+            onClick={() => handleOpenGenerateModal('reformulate')} 
+            className="courses-btn courses-btn-secondary"
+            disabled={isGeneratingBlock}
+            style={{ flex: 1 }}
+          >
+            🔄 Переформулировать
+          </button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
         <button onClick={onSave} className="courses-btn courses-btn-primary">
           Сохранить
@@ -261,6 +322,87 @@ const BlockEditor = ({
           Отменить
         </button>
       </div>
+
+      {/* Модальное окно для генерации/переформулирования */}
+      {showGenerateModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={handleCloseGenerateModal}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '24px',
+              borderRadius: '8px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>
+              {generateMode === 'generate' ? '✨ Сгенерировать контент блока' : '🔄 Переформулировать блок'}
+            </h3>
+            
+            <div className="courses-form-group" style={{ marginBottom: '16px' }}>
+              <label>
+                {generateMode === 'generate' 
+                  ? 'Запрос для генерации (необязательно)' 
+                  : 'Как переформулировать блок (необязательно)'}
+              </label>
+              <textarea
+                value={userRequest}
+                onChange={(e) => setUserRequest(e.target.value)}
+                className="courses-textarea"
+                rows="3"
+                placeholder={generateMode === 'generate' 
+                  ? 'Например: "Создай блок о переменных в Python"' 
+                  : 'Например: "Сделай более простым языком" или "Добавь примеры"'}
+              />
+            </div>
+
+            <div className="courses-form-group" style={{ marginBottom: '16px' }}>
+              <label>Дополнительный контекст или материалы (необязательно)</label>
+              <textarea
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                className="courses-textarea"
+                rows="4"
+                placeholder="Конспект или материалы, на основе которых нужно создать/переформулировать блок"
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={handleCloseGenerateModal} 
+                className="courses-btn courses-btn-secondary"
+                disabled={isGeneratingBlock}
+              >
+                Отменить
+              </button>
+              <button 
+                onClick={handleGenerate} 
+                className="courses-btn courses-btn-primary"
+                disabled={isGeneratingBlock}
+              >
+                {isGeneratingBlock ? 'Генерация...' : (generateMode === 'generate' ? 'Сгенерировать' : 'Переформулировать')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

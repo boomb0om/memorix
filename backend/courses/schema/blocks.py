@@ -211,12 +211,6 @@ class GenerateLessonBlockContentRequest(BaseModel):
         default=None,
         description="Конспект или материалы, на основе которых нужно создать урок",
     )
-    goal: str | None = Field(
-        default=None, description="Что студент должен уметь после урока", max_length=500
-    )
-    focus_points: list[str] | None = Field(
-        default=None, description="Ключевые аспекты, которые обязательно нужно раскрыть"
-    )
 
 
 class GenerateLessonBlockContentResponse(BaseModel):
