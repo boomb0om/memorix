@@ -8,7 +8,11 @@ from pydantic import TypeAdapter
 
 from .base_generator import BaseBlockGenerator
 from .prompts import MISTRAL_SINGLE_BLOCK_PROMPT
-from .schema import GeneratedLessonBlockContent, LessonBlock, LessonBlockGenerateContext
+from .schema import (
+    GeneratedLessonBlockContent,
+    LessonBlock,
+    LessonBlockGenerateContext,
+)
 
 
 class OpenAIBlockGenerator(BaseBlockGenerator):
@@ -99,11 +103,6 @@ class OpenAIBlockGenerator(BaseBlockGenerator):
             sections.append(
                 f"\n# Дополнительный контекст/материалы:\n{context.context}"
             )
-        if context.goal:
-            sections.append(f"\n# Цель урока:\n{context.goal}")
-        if context.focus_points:
-            focus_block = "\n".join(f"- {point}" for point in context.focus_points)
-            sections.append(f"\n# Обязательные акценты:\n{focus_block}")
 
         sections.append(
             "\n# Выведи строго JSON одного блока, соответствующий схеме ответа."
@@ -137,8 +136,6 @@ if __name__ == "__main__":
             current_block=None,
             next_block=None,
             context="Python предоставляет встроенные функции open/read/write.",
-            goal="Научиться работать с файлами в Python.",
-            focus_points=["Пример чтения файла", "Пример записи"],
         )
         block = await generator.generate_block(context)
 

@@ -443,6 +443,18 @@ function Courses() {
               onSingleChoiceSelect={lessonsHook.handleSingleChoiceSelect}
               onMultipleChoiceToggle={lessonsHook.handleMultipleChoiceToggle}
               onCheckAnswer={handleCheckAnswer}
+              courseId={coursesHook.selectedCourse?.id}
+              lessonId={lessonsHook.selectedLesson?.id}
+              onGenerateBlock={async (blockId, data) => {
+                try {
+                  await blocksHook.handleGenerateBlockContent(blockId, data);
+                } catch (err) {
+                  coursesHook.setError('Не удалось сгенерировать контент блока');
+                  console.error('Error generating block:', err);
+                  throw err;
+                }
+              }}
+              isGeneratingBlock={blocksHook.isGeneratingBlock}
             />
           )}
 
@@ -462,6 +474,8 @@ function Courses() {
               onDeleteBlock={deleteBlock}
               onMoveBlock={moveBlock}
               onSetEditingBlockIndex={lessonsHook.setEditingBlockIndex}
+              courseId={coursesHook.selectedCourse?.id}
+              lessonId={null}
             />
           )}
 

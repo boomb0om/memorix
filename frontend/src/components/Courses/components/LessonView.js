@@ -54,6 +54,10 @@ const LessonView = ({
   onSingleChoiceSelect,
   onMultipleChoiceToggle,
   onCheckAnswer,
+  courseId,
+  lessonId,
+  onGenerateBlock,
+  isGeneratingBlock,
 }) => {
   const renderBlock = (block, index) => {
     const canDrag = isAuthor && block.block_id && editingBlockId !== block.block_id;
@@ -73,6 +77,10 @@ const LessonView = ({
             onRemoveOption={onRemoveBlockOption}
             onSave={onSaveBlock}
             onCancel={onCancelBlockEdit}
+            courseId={courseId}
+            lessonId={lessonId}
+            onGenerateBlock={onGenerateBlock ? (data) => onGenerateBlock(editingBlockId, data) : null}
+            isGeneratingBlock={isGeneratingBlock}
           />
         </div>
       );

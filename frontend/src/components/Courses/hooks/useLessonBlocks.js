@@ -12,6 +12,7 @@ export const useLessonBlocks = (selectedCourse, selectedLesson, setSelectedLesso
   const [dragOverBlockIndex, setDragOverBlockIndex] = useState(null);
   const [isDraggingBlock, setIsDraggingBlock] = useState(false);
   const [isGeneratingLessonContent, setIsGeneratingLessonContent] = useState(false);
+  const [isGeneratingBlock, setIsGeneratingBlock] = useState(false);
 
   const handleEditBlock = (block) => {
     if (!block.block_id) {
@@ -156,6 +157,39 @@ export const useLessonBlocks = (selectedCourse, selectedLesson, setSelectedLesso
     }
   };
 
+  const handleGenerateBlockContent = async (blockId, data) => {
+    if (!selectedCourse || !selectedLesson || !blockId) return;
+
+    try {
+      setIsGeneratingBlock(true);
+
+      const response = await lessonsApi.generateBlockContent(
+        selectedCourse.id,
+        selectedLesson.id,
+        blockId,
+        data
+      );
+
+      const generatedBlock = response.data.block;
+      
+      // Обновляем данные редактируемого блока
+      if (editingBlockId === blockId) {
+        setEditingBlockData({ ...generatedBlock, block_id: blockId });
+      }
+
+      // Обновляем урок с сервера
+      const lessonResponse = await lessonsApi.getById(selectedCourse.id, selectedLesson.id);
+      setSelectedLesson(lessonResponse.data);
+      
+      return generatedBlock;
+    } catch (err) {
+      console.error('Error generating block content:', err);
+      throw err;
+    } finally {
+      setIsGeneratingBlock(false);
+    }
+  };
+
   // Drag and drop для блоков
   const handleDragStartBlock = (e, blockId) => {
     if (!blockId || editingBlockId === blockId) {
@@ -260,6 +294,7 @@ export const useLessonBlocks = (selectedCourse, selectedLesson, setSelectedLesso
     dragOverBlockIndex,
     isDraggingBlock,
     isGeneratingLessonContent,
+    isGeneratingBlock,
     setEditingBlockId,
     setEditingBlockData,
     handleEditBlock,
@@ -272,6 +307,7 @@ export const useLessonBlocks = (selectedCourse, selectedLesson, setSelectedLesso
     handleAddBlockOption,
     handleRemoveBlockOption,
     handleGenerateLessonContent,
+    handleGenerateBlockContent,
     handleDragStartBlock,
     handleDragEndBlock,
     handleDragOverBlock,

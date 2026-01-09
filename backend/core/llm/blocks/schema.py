@@ -24,13 +24,6 @@ class LessonBlockGenerateContext(BaseModel):
         default=None,
         description="Конспект или материалы, на основе которых нужно создать/переформулировать блок",
     )
-    goal: str | None = Field(
-        default=None, description="Что студент должен уметь после урока"
-    )
-    focus_points: list[str] | None = Field(
-        default=None,
-        description="Ключевые аспекты, которые обязательно нужно раскрыть",
-    )
 
     # Соседние блоки для контекста
     previous_block: Optional[dict] = Field(
