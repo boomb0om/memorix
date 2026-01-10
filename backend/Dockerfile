@@ -24,4 +24,4 @@ COPY . .
 EXPOSE 8000
 
 # Запускаем напрямую через uv run без пересоздания окружения
-CMD ["uv", "run", "--no-sync", "uvicorn", "__main__:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--no-sync", "__main__:app", "--host", "0.0.0.0", "--port", "8000"]

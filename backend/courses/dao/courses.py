@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, or_
 from sqlalchemy.orm import selectinload
 from courses.schema.acl import CourseACLGroup
-from .models import Course, CourseACL
+from .models import Course, CourseACL, Lesson
 
 
 class CourseDAO:
@@ -27,6 +27,20 @@ class CourseDAO:
             select(Course)
             .where(Course.id == course_id)
             .options(selectinload(Course.lessons))
+        )
+        return result.scalar_one_or_none()
+    
+    @classmethod
+    async def get_by_id_with_lesson_blocks(
+        cls, 
+        session: AsyncSession, 
+        course_id: int
+    ) -> Course | None:
+        """Получить курс по ID с блоками уроков"""
+        result = await session.execute(
+            select(Course)
+            .where(Course.id == course_id)
+            .options(selectinload(Course.lessons).selectinload(Lesson.blocks))
         )
         return result.scalar_one_or_none()
 

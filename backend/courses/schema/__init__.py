@@ -46,5 +46,6 @@ __all__ = [
     "CourseResponse",
     "CourseWithLessons",
     "CourseDetailResponse",
+    "GenerateLessonsRequest",
+    "CourseSearchResponse",
 ]
-
