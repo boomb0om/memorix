@@ -334,6 +334,45 @@ function Courses() {
     }
   };
 
+  // Обработчик экспорта курса
+  const handleExportCourse = async () => {
+    if (!coursesHook.selectedCourse) {
+      coursesHook.setError('Курс не выбран');
+      return;
+    }
+
+    try {
+      coursesHook.setError(null);
+      const response = await coursesApi.export(coursesHook.selectedCourse.id);
+      
+      // Создаем ссылку для скачивания файла
+      const blob = new Blob([response.data], { type: 'text/markdown; charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Получаем имя файла из заголовка Content-Disposition или используем название курса
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${coursesHook.selectedCourse.name}.md`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+        if (filenameMatch) {
+          filename = decodeURIComponent(filenameMatch[1]);
+        }
+      }
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || 'Не удалось экспортировать курс';
+      coursesHook.setError(errorMessage);
+      console.error('Error exporting course:', err);
+    }
+  };
+
   return (
     <>
       <Sidebar />
@@ -501,6 +540,7 @@ function Courses() {
               onCreateLesson={lessonsHook.handleCreateNewLesson}
               onGenerateLessons={handleOpenGenerateLessonsModal}
               isGeneratingLessons={isGeneratingLessons}
+              onExportCourse={handleExportCourse}
             />
           )}
         </div>

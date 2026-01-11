@@ -172,6 +172,9 @@ export const coursesApi = {
 
   // Поиск курсов
   search: (query) => api.get('/api/courses/search', { params: { query } }),
+
+  // Экспортировать курс
+  export: (id) => api.post(`/api/courses/${id}/export`, {}, { responseType: 'blob' }),
 };
 
 // API для работы с уроками

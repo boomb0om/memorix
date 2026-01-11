@@ -9,7 +9,7 @@ async def auth_middleware(request: Request, call_next):
     """Middleware для автоматической проверки токенов"""
     
     # Пропускаем публичные endpoints
-    public_paths = ["/", "/api/users/login", "/api/users/register", "/api/docs", "/api/openapi.json", "/api/users/refresh"]
+    public_paths = ["/", "/api/users/login", "/api/users/register", "/api/docs", "/openapi.json", "/api/users/refresh"]
     if request.url.path in public_paths:
         response = await call_next(request)
         return response

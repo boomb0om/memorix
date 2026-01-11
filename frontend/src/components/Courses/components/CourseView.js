@@ -27,11 +27,12 @@ const CourseView = ({
   onCreateLesson,
   onGenerateLessons,
   isGeneratingLessons,
+  onExportCourse,
 }) => {
   return (
     <div className="courses-view">
       <div className="courses-view-header">
-        <div>
+        <div style={{ flex: 1 }}>
           {editingCourseName ? (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '200px' }}>
@@ -81,6 +82,19 @@ const CourseView = ({
             )}
           </p>
         </div>
+        {onExportCourse && (
+          <div>
+            <button 
+              onClick={onExportCourse}
+              className="courses-btn courses-btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Экспортировать курс в формате Markdown"
+            >
+              <span>📥</span>
+              <span>Экспорт</span>
+            </button>
+          </div>
+        )}
       </div>
       <div className="courses-view-content">
         <h3>Описание</h3>
