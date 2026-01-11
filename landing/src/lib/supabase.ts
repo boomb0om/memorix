@@ -17,9 +17,7 @@ export interface AccessRequest {
 export async function createAccessRequest(data: AccessRequest) {
   const { data: result, error } = await supabase
     .from('landing_access_requests')
-    .insert([data])
-    .select()
-    .single();
+    .insert([data], { returning: 'minimal' });
 
   if (error) {
     throw error;
