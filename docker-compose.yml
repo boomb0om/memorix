@@ -89,7 +89,11 @@ services:
       - backend
 
   landing:
-    build: ./landing
+    build:
+      context: ./landing
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     # Port 80 is now only exposed internally to Caddy
     expose:
       - "80"

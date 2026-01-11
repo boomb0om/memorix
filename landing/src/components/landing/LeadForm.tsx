@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { createAccessRequest } from "@/lib/supabase";
 
 interface LeadFormProps {
   variant?: "hero" | "cta";
@@ -24,48 +25,44 @@ const LeadForm = ({ variant = "hero" }: LeadFormProps) => {
 
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast.success("Спасибо! Мы свяжемся с вами в ближайшее время.");
-    setEmail("");
-    setName("");
-    setIsLoading(false);
+    try {
+      await createAccessRequest({ name, email });
+      toast.success("Спасибо! Мы свяжемся с вами в ближайшее время.");
+      setEmail("");
+      setName("");
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      toast.error("Произошла ошибка. Попробуйте еще раз.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (variant === "hero") {
+    const scrollToCTA = () => {
+      const ctaElement = document.getElementById('cta');
+      if (ctaElement) {
+        ctaElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
     return (
-      <motion.form
-        onSubmit={handleSubmit}
-        className="flex flex-col sm:flex-row gap-3 w-full max-w-lg"
+      <motion.div
+        className="flex justify-center"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
       >
-        <Input
-          type="email"
-          placeholder="Ваш email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="h-14 bg-secondary/50 border-border/50 text-foreground placeholder:text-muted-foreground focus:border-primary"
-        />
         <Button 
-          type="submit" 
+          onClick={scrollToCTA}
           variant="hero" 
           size="lg"
-          disabled={isLoading}
           className="min-w-[180px]"
         >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <>
-              Попробовать
-              <ArrowRight className="w-5 h-5 ml-1" />
-            </>
-          )}
+          Попробовать
+          <ArrowRight className="w-5 h-5 ml-1" />
         </Button>
-      </motion.form>
+      </motion.div>
     );
   }
 
