@@ -85,6 +85,8 @@ services:
     build: ./frontend
     ports:
       - "3000:80"
+    expose:
+      - "80"
     depends_on:
       - backend
 
@@ -111,6 +113,7 @@ services:
       - caddy_config:/config
     depends_on:
       - landing
+      - frontend
 
   qdrant:
     image: qdrant/qdrant:latest
