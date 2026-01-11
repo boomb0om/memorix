@@ -102,7 +102,7 @@ export const useCourses = () => {
       if (isCreatingCourse) {
         const response = await coursesApi.create({
           name: editedCourseName.trim(),
-          description: editedCourseDescription.trim() || null,
+          description: editedCourseDescription.trim() || '',
         });
         setSelectedCourse(response.data);
         await loadCourses();
@@ -111,7 +111,7 @@ export const useCourses = () => {
       } else if (selectedCourse) {
         const response = await coursesApi.update(selectedCourse.id, {
           name: editedCourseName.trim(),
-          description: editedCourseDescription.trim() || null,
+          description: editedCourseDescription.trim() || '',
         });
         setSelectedCourse(response.data);
         await loadCourses();
@@ -236,7 +236,7 @@ export const useCourses = () => {
       }
 
       const response = await coursesApi.update(selectedCourse.id, {
-        description: tempCourseDescription.trim() || null,
+        description: tempCourseDescription.trim() || '',
       });
       setSelectedCourse(response.data);
       await loadCourses();
