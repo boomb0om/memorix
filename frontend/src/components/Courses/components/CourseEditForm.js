@@ -1,5 +1,6 @@
 import React from 'react';
 import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config';
+import AIButton from './AIButton';
 
 /**
  * Компонент формы редактирования курса
@@ -61,14 +62,14 @@ const CourseEditForm = ({
         </div>
         {!isCreating && onGenerateLessons && (
           <div className="courses-form-group">
-            <button 
+            <AIButton 
               onClick={onGenerateLessons} 
               className="courses-btn courses-btn-secondary"
               disabled={isGeneratingLessons}
               style={{ width: '100%', marginTop: '16px' }}
             >
               {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать уроки'}
-            </button>
+            </AIButton>
             <p style={{ fontSize: '0.9em', color: '#666', marginTop: '8px' }}>
               Создаст план уроков на основе названия и описания курса
             </p>

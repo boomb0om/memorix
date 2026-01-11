@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { formatDate } from '../utils';
 import { MAX_NAME_LENGTH, MAX_DESCRIPTION_LENGTH } from '../config';
 import LessonCard from './LessonCard';
+import AIButton from './AIButton';
 
 /**
  * Компонент просмотра курса
@@ -161,13 +162,13 @@ const CourseView = ({
           <div className="lessons-cards-empty">
             {isAuthor ? (
               <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', alignItems: 'center' }}>
-                <button 
+                <AIButton 
                   onClick={onGenerateLessons} 
                   className="courses-create-btn-large"
                   disabled={isGeneratingLessons}
                 >
                   {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать план уроков'}
-                </button>
+                </AIButton>
                 <span style={{ color: '#666', fontSize: '0.9em' }}>или</span>
                 <button onClick={onCreateLesson} className="courses-create-btn-large">
                   Создать первый урок вручную
@@ -185,13 +186,13 @@ const CourseView = ({
           <>
             {isAuthor && (
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <button 
+                <AIButton 
                   onClick={onGenerateLessons} 
                   className="courses-btn courses-btn-secondary"
                   disabled={isGeneratingLessons}
                 >
                   {isGeneratingLessons ? 'Генерация...' : '✨ Сгенерировать уроки'}
-                </button>
+                </AIButton>
                 <button onClick={onCreateLesson} className="courses-btn courses-btn-primary">
                   + Создать урок
                 </button>

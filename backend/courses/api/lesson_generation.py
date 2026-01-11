@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
 from courses.schema.lessons import GenerateLessonContentRequest, GenerateLessonContentResponse
 import courses.service.lesson_generation as lesson_generation_service
+from users.service.users import check_user_plan_for_llm
 
 
 router = APIRouter(prefix="/{course_id}/lessons", tags=["lesson-generation"])
@@ -17,6 +18,9 @@ async def generate_lesson_content(
     db: AsyncSession = Depends(get_db)
 ):
     user_id = request.state.user_id
+    
+    # Проверяем тариф пользователя
+    await check_user_plan_for_llm(db, user_id)
     
     blocks = await lesson_generation_service.generate_lesson_content(
         db=db,

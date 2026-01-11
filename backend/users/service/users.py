@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from users.dao import UserDAO
+from users.dao.models import UserPlan
 from users.schema import UserCreate, UserLogin
 from core.auth.password import hash_password, verify_password, _FAKE_HASH
 from core.auth.tokens import refresh_access_token as refresh_token
@@ -63,3 +64,21 @@ async def delete_user(db: AsyncSession, user_id: int):
 
 async def refresh_access_token(db: AsyncSession, refresh_token_str: str):
     return await refresh_token(refresh_token_str, db)
+
+
+async def check_user_plan_for_llm(db: AsyncSession, user_id: int):
+    """Проверяет, что у пользователя есть доступ к LLM функциям (не free план)"""
+    user = await UserDAO.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.plan == UserPlan.FREE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="LLM features are not available for free plan. Please upgrade to testing plan."
+        )
+    
+    return user

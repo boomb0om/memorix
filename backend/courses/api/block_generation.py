@@ -9,6 +9,7 @@ from courses.schema.blocks import (
     GenerateLessonBlockContentRequest,
     GenerateLessonBlockContentResponse,
 )
+from users.service.users import check_user_plan_for_llm
 
 router = APIRouter(prefix="/{course_id}/lessons", tags=["block-generation"])
 
@@ -28,6 +29,9 @@ async def generate_block_content(
 ):
     """Сгенерировать контент или переформулировать содержимое для отдельного блока урока"""
     user_id = request.state.user_id
+    
+    # Проверяем тариф пользователя
+    await check_user_plan_for_llm(db, user_id)
 
     block = await block_generation_service.generate_lesson_block_content(
         db=db,

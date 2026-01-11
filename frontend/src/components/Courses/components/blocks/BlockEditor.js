@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import AIButton from '../AIButton';
 
 /**
  * Компонент редактора блока урока
@@ -295,22 +296,22 @@ const BlockEditor = ({
 
       {canGenerate && (
         <div style={{ display: 'flex', gap: '8px', marginTop: '16px', marginBottom: '8px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
-          <button 
+          <AIButton 
             onClick={() => handleOpenGenerateModal('generate')} 
             className="courses-btn courses-btn-secondary"
             disabled={isGeneratingBlock}
             style={{ flex: 1 }}
           >
             ✨ Сгенерировать контент
-          </button>
-          <button 
+          </AIButton>
+          <AIButton 
             onClick={() => handleOpenGenerateModal('reformulate')} 
             className="courses-btn courses-btn-secondary"
             disabled={isGeneratingBlock}
             style={{ flex: 1 }}
           >
             🔄 Переформулировать
-          </button>
+          </AIButton>
         </div>
       )}
 

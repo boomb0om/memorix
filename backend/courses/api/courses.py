@@ -19,6 +19,7 @@ from courses.schema import (
     LessonListItem,
 )
 from courses.service import course_export as export_service
+from users.service.users import check_user_plan_for_llm
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
@@ -130,6 +131,10 @@ async def generate_lessons(
 ):
     """Сгенерировать план уроков для курса"""
     user_id = request.state.user_id
+    
+    # Проверяем тариф пользователя
+    await check_user_plan_for_llm(db, user_id)
+    
     if request_data is None:
         request_data = GenerateLessonsRequest()
 
@@ -154,6 +159,9 @@ async def analyze_course_methodology(
     Возвращает текстовый отчёт с рекомендациями по улучшению курса.
     """
     user_id = request.state.user_id
+    
+    # Проверяем тариф пользователя
+    await check_user_plan_for_llm(db, user_id)
 
     report = await course_analysis_service.analyze_course_methodology(
         db, course_id, user_id

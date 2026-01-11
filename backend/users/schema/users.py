@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
+from users.dao.models import UserPlan
 
 
 class UserBase(BaseModel):
@@ -28,6 +29,7 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     is_active: bool
+    plan: UserPlan
     created_at: datetime
     
     class Config:

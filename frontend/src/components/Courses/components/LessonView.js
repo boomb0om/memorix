@@ -9,6 +9,7 @@ import SingleChoiceBlock from './blocks/SingleChoiceBlock';
 import MultipleChoiceBlock from './blocks/MultipleChoiceBlock';
 import BlockEditor from './blocks/BlockEditor';
 import { createNewBlock } from '../utils';
+import AIButton from './AIButton';
 
 /**
  * Компонент просмотра урока
@@ -319,14 +320,14 @@ const LessonView = ({
             <p style={{ color: '#666', marginBottom: '20px' }}>
               В этом уроке пока нет блоков. Вы можете сгенерировать контент автоматически или добавить блоки вручную.
             </p>
-            <button
+            <AIButton
               onClick={onGenerateContent}
               disabled={isGeneratingContent}
               className="courses-btn courses-btn-primary"
               style={{ marginRight: '12px' }}
             >
               {isGeneratingContent ? 'Генерация...' : '✨ Сгенерировать контент'}
-            </button>
+            </AIButton>
             <div className="lesson-blocks-add-menu" style={{ marginTop: '20px', display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('theory')}>
                 + Теория
