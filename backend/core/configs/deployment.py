@@ -8,6 +8,10 @@ class DeploymentSettings(BaseSettings):
         default="dev",
         env="ENVIRONMENT"
     )
+    service_name: str = Field(
+        default="backend",
+        env="SERVICE_NAME"
+    )
 
 
 deployment_settings = DeploymentSettings()

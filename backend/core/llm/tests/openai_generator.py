@@ -1,9 +1,9 @@
-import openai
 import os
 import asyncio
 import json
 import re
 
+from core.llm.openai_client import MonitoredOpenAIClient
 from .base_generator import BaseTestsGenerator
 from .schema import TestGenerateContext, BaseQuestion, ChoiceQuestion
 from .prompts import MISTRAL_TESTS_PROMPT
@@ -19,7 +19,7 @@ class OpenAITestsGenerator(BaseTestsGenerator):
     ):
         self.api_key = api_key
         self.model = model
-        self.client = openai.AsyncOpenAI(
+        self.client = MonitoredOpenAIClient(
             api_key=api_key,
             base_url=base_url
         )
@@ -29,7 +29,7 @@ class OpenAITestsGenerator(BaseTestsGenerator):
         if context.num_questions:
             user_prompt += f"# В тесте должно быть {context.num_questions} вопросов\n\n"
         user_prompt += "# Тест:\n"
-        response = await self.client.chat.completions.create(
+        response = await self.client.completions_create(
             model=self.model, 
             messages=[
                 {"role": "system", "content": MISTRAL_TESTS_PROMPT},

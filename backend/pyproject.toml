@@ -25,6 +25,10 @@ dependencies = [
     "sqlalchemy[asyncio]==2.0.23",
     "uvicorn[standard]==0.24.0",
     "markdown>=3.5.0",
+    "prometheus-client>=0.24.1",
+    "cachetools>=6.2.4",
+    "psutil>=7.2.1",
+    "prometheus-fastapi-instrumentator>=6.1.0",
 ]
 
 [dependency-groups]

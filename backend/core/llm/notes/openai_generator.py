@@ -1,7 +1,7 @@
-import openai
 import os
 import asyncio
 
+from core.llm.openai_client import MonitoredOpenAIClient
 from .base_generator import BaseNotesGenerator
 from .schema import NotesGenerateContext
 from .prompts import MISTRAL_NOTES_PROMPT
@@ -17,13 +17,13 @@ class OpenAINotesGenerator(BaseNotesGenerator):
     ):
         self.api_key = api_key
         self.model = model
-        self.client = openai.AsyncOpenAI(
+        self.client = MonitoredOpenAIClient(
             api_key=api_key,
             base_url=base_url
         )
 
     async def generate_notes(self, user_notes: str) -> str:
-        response = await self.client.chat.completions.create(
+        response = await self.client.completions_create(
             model=self.model, 
             messages=[
                 {"role": "system", "content": MISTRAL_NOTES_PROMPT},

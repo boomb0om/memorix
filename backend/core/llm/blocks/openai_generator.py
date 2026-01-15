@@ -2,10 +2,10 @@ import asyncio
 import json
 import os
 
-import openai
 import pydantic
 from pydantic import TypeAdapter
 
+from core.llm.openai_client import MonitoredOpenAIClient
 from .base_generator import BaseBlockGenerator
 from .prompts import MISTRAL_SINGLE_BLOCK_PROMPT
 from .schema import (
@@ -26,13 +26,13 @@ class OpenAIBlockGenerator(BaseBlockGenerator):
     ):
         self.api_key = api_key
         self.model = model
-        self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.client = MonitoredOpenAIClient(api_key=api_key, base_url=base_url)
 
     async def generate_block(
         self, context: LessonBlockGenerateContext
     ) -> GeneratedLessonBlockContent:
         """Сгенерировать один блок урока."""
-        response = await self.client.chat.completions.create(
+        response = await self.client.completions_create(
             model=self.model,
             messages=[
                 {"role": "system", "content": MISTRAL_SINGLE_BLOCK_PROMPT},

@@ -2,17 +2,33 @@ import asyncio
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import REGISTRY
+from prometheus_fastapi_instrumentator import Instrumentator
 from users.api.users import router as users_router
 from notes.api.notes import router as notes_router
 from courses.api.courses import router as courses_router
 from documents.api.documents import router as documents_router
-from core.middleware.auth_middleware import auth_middleware
+from core.middleware import auth_middleware, update_metrics_middleware
+from core.monitoring.requests import start_metrics_server
+
 
 logger = logging.getLogger(__name__)
 
 
 def create_app():
     app = FastAPI(title="Memorix API", version="1.0.0", docs_url="/api/docs")
+    
+    # Настройка Prometheus Instrumentator
+    instrumentator = Instrumentator(
+        should_group_status_codes=False,
+        should_ignore_untemplated=True,
+        should_instrument_requests_inprogress=True,
+        excluded_handlers=["/metrics", "/api/docs", "/openapi.json"],
+        inprogress_name="http_requests_inprogress",
+        inprogress_labels=True,
+        registry=REGISTRY,
+    )
+    instrumentator.instrument(app).expose(app)
     
     app.add_middleware(
         CORSMiddleware,
@@ -23,6 +39,7 @@ def create_app():
         expose_headers=["*"],
     )
     app.middleware("http")(auth_middleware)
+    app.middleware("http")(update_metrics_middleware)
 
     app.include_router(users_router, prefix="/api")
     app.include_router(notes_router, prefix="/api")
@@ -54,4 +71,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
+    start_metrics_server()
     uvicorn.run(app, host="0.0.0.0", port=8000)

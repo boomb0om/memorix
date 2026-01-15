@@ -1,7 +1,7 @@
 import json
 import os
-import openai
 
+from core.llm.openai_client import MonitoredOpenAIClient
 from .base_generator import BaseCourseAnalysisGenerator
 from .schema import CourseAnalysisContext, CourseAnalysisReport
 from .prompts import COURSE_ANALYSIS_PROMPT
@@ -18,13 +18,13 @@ class OpenAICourseAnalysisGenerator(BaseCourseAnalysisGenerator):
     ):
         self.api_key = api_key
         self.model = model
-        self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.client = MonitoredOpenAIClient(api_key=api_key, base_url=base_url)
 
     async def analyze_course(
         self, context: CourseAnalysisContext
     ) -> CourseAnalysisReport:
         """Проанализировать курс и вернуть отчёт."""
-        response = await self.client.chat.completions.create(
+        response = await self.client.completions_create(
             model=self.model,
             messages=[
                 {"role": "system", "content": COURSE_ANALYSIS_PROMPT},

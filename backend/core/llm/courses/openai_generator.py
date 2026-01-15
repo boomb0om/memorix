@@ -1,9 +1,9 @@
-import openai
 import os
 import asyncio
 import json
 import re
 
+from core.llm.openai_client import MonitoredOpenAIClient
 from .base_generator import BaseCourseGenerator
 from .schema import CourseSummaryGenerateContext, CourseSummary
 from .prompts import MISTRAL_COURSE_SUMMARY_PROMPT
@@ -19,7 +19,7 @@ class OpenAICourseGenerator(BaseCourseGenerator):
     ):
         self.api_key = api_key
         self.model = model
-        self.client = openai.AsyncOpenAI(
+        self.client = MonitoredOpenAIClient(
             api_key=api_key,
             base_url=base_url
         )
@@ -29,7 +29,7 @@ class OpenAICourseGenerator(BaseCourseGenerator):
         if context.topics:
             user_prompt += f"# Темы курса, которые обязательно нужно включить в программу:\n{context.topics}\n\n"
         user_prompt += "# ответ в формате JSON:\n"
-        response = await self.client.chat.completions.create(
+        response = await self.client.completions_create(
             model=self.model, 
             messages=[
                 {"role": "system", "content": MISTRAL_COURSE_SUMMARY_PROMPT},
