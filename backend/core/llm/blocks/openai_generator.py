@@ -1,11 +1,11 @@
 import asyncio
 import json
-import os
 
 import pydantic
 from pydantic import TypeAdapter
 
-from core.llm.openai_client import MonitoredOpenAIClient
+from core.llm.openai_client import MonitoredOpenAIClient, get_monitored_openai_client
+from core.configs.llm import llm_settings
 from .base_generator import BaseBlockGenerator
 from .prompts import MISTRAL_SINGLE_BLOCK_PROMPT
 from .schema import (
@@ -20,25 +20,23 @@ class OpenAIBlockGenerator(BaseBlockGenerator):
 
     def __init__(
         self,
-        api_key: str,
-        model: str,
-        base_url: str | None = None,
+        client: MonitoredOpenAIClient,
+        log_task_type: str = "generate_lesson_block",
     ):
-        self.api_key = api_key
-        self.model = model
-        self.client = MonitoredOpenAIClient(api_key=api_key, base_url=base_url)
+        self.client = client
+        self.log_task_type = log_task_type
 
     async def generate_block(
         self, context: LessonBlockGenerateContext
     ) -> GeneratedLessonBlockContent:
         """Сгенерировать один блок урока."""
         response = await self.client.completions_create(
-            model=self.model,
             messages=[
                 {"role": "system", "content": MISTRAL_SINGLE_BLOCK_PROMPT},
                 {"role": "user", "content": self._build_user_prompt(context)},
             ],
             response_format={"type": "json_object"},
+            log_task_type=self.log_task_type,
         )
 
         content = (
@@ -110,21 +108,17 @@ class OpenAIBlockGenerator(BaseBlockGenerator):
         return "\n".join(section for section in sections if section.strip())
 
 
-async def get_mistral_block_generator(
-    api_key: str | None = None,
-) -> OpenAIBlockGenerator:
+async def get_block_generator() -> OpenAIBlockGenerator:
     """Создать генератор блоков, настроенный на Mistral."""
     return OpenAIBlockGenerator(
-        api_key=api_key or os.getenv("MISTRAL_API_KEY"),
-        model="mistral-medium-latest",
-        base_url="https://api.mistral.ai/v1",
+        client=get_monitored_openai_client(llm_settings),
     )
 
 
 if __name__ == "__main__":
 
     async def main():
-        generator = await get_mistral_block_generator()
+        generator = await get_block_generator()
         context = LessonBlockGenerateContext(
             course_name="Программирование на Python",
             course_description="Курс предназначен для изучения основ программирования на Python.",

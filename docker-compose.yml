@@ -38,6 +38,10 @@ services:
       - "127.0.0.1:9200:9200"
     environment:
       - DATABASE_URI=postgresql+asyncpg://memorix:hackmemorix@db:5432/memorix_backend
+      # LLM Settings
+      - LLM_MODEL_PROVIDER=${LLM_MODEL_PROVIDER}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME}
+      - LLM_API_KEY=${LLM_API_KEY}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
       # S3 Settings
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}

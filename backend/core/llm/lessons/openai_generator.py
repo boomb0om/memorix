@@ -1,11 +1,11 @@
 import asyncio
 import json
-import os
 import pydantic
 
-from core.llm.openai_client import MonitoredOpenAIClient
+from core.llm.openai_client import MonitoredOpenAIClient, get_monitored_openai_client
+from core.configs.llm import llm_settings
 from .base_generator import BaseLessonsGenerator
-from .schema import LessonBlocksGenerateContext, GeneratedLessonContent, LessonBlock
+from .schema import LessonBlocksGenerateContext, GeneratedLessonContent
 from .prompts import MISTRAL_LESSON_BLOCKS_PROMPT
 
 
@@ -14,23 +14,21 @@ class OpenAILessonsGenerator(BaseLessonsGenerator):
 
     def __init__(
         self,
-        api_key: str,
-        model: str,
-        base_url: str | None = None,
+        client: MonitoredOpenAIClient,
+        log_task_type: str = "generate_lesson_blocks",
     ):
-        self.api_key = api_key
-        self.model = model
-        self.client = MonitoredOpenAIClient(api_key=api_key, base_url=base_url)
+        self.client = client
+        self.log_task_type = log_task_type
 
     async def generate_blocks(self, context: LessonBlocksGenerateContext) -> GeneratedLessonContent:
         """Собрать урок в виде блоков."""
         response = await self.client.completions_create(
-            model=self.model,
             messages=[
                 {"role": "system", "content": MISTRAL_LESSON_BLOCKS_PROMPT},
                 {"role": "user", "content": self._build_user_prompt(context)},
             ],
             response_format={'type': 'json_object'},
+            log_task_type=self.log_task_type,
         )
 
         content = response.choices[0].message.content.strip('```json').strip('```').strip(' \n')
@@ -61,18 +59,16 @@ class OpenAILessonsGenerator(BaseLessonsGenerator):
         return "\n\n".join(section for section in sections if section.strip())
 
 
-async def get_mistral_lessons_generator(api_key: str | None = None) -> OpenAILessonsGenerator:
-    """Создать генератор, настроенный на Mistral."""
+async def get_lessons_generator() -> OpenAILessonsGenerator:
+    """Создать генератор уроков"""
     return OpenAILessonsGenerator(
-        api_key=api_key or os.getenv("MISTRAL_API_KEY"),
-        model="mistral-medium-latest",
-        base_url="https://api.mistral.ai/v1",
+        client=get_monitored_openai_client(llm_settings),
     )
 
 
 if __name__ == "__main__":
     async def main():
-        generator = await get_mistral_lessons_generator()
+        generator = await get_lessons_generator()
         context = LessonBlocksGenerateContext(
             topic="Работа с файлами в Python",
             description="Python предоставляет встроенные функции open/read/write.",

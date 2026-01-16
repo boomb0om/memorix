@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from courses.schema import CourseCreate, CourseUpdate
 from courses.dao import CourseDAO, LessonDAO
 from courses.service.access_control import ensure_course_access
-from core.llm.courses.openai_generator import get_mistral_course_generator
+from core.llm.courses.openai_generator import get_course_generator
 from core.llm.courses.schema import CourseSummaryGenerateContext
 
 logger = logging.getLogger(__name__)
@@ -154,7 +154,7 @@ async def generate_lessons_plan(
     
     # Генерируем план курса
     logger.info(f"User {user_id} generating lessons plan for course {course_id}")
-    generator = await get_mistral_course_generator()
+    generator = await get_course_generator()
     course_summary = await generator.generate_plan(context)
     
     # Создаем уроки на основе тем из плана

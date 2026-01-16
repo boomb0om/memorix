@@ -1,7 +1,5 @@
-import json
-import os
-
-from core.llm.openai_client import MonitoredOpenAIClient
+from core.llm.openai_client import MonitoredOpenAIClient, get_monitored_openai_client
+from core.configs.llm import llm_settings
 from .base_generator import BaseCourseAnalysisGenerator
 from .schema import CourseAnalysisContext, CourseAnalysisReport
 from .prompts import COURSE_ANALYSIS_PROMPT
@@ -12,25 +10,23 @@ class OpenAICourseAnalysisGenerator(BaseCourseAnalysisGenerator):
 
     def __init__(
         self,
-        api_key: str,
-        model: str,
-        base_url: str | None = None,
+        client: MonitoredOpenAIClient,
+        log_task_type: str = "analyze_course",
     ):
-        self.api_key = api_key
-        self.model = model
-        self.client = MonitoredOpenAIClient(api_key=api_key, base_url=base_url)
+        self.client = client
+        self.log_task_type = log_task_type
 
     async def analyze_course(
         self, context: CourseAnalysisContext
     ) -> CourseAnalysisReport:
         """Проанализировать курс и вернуть отчёт."""
         response = await self.client.completions_create(
-            model=self.model,
             messages=[
                 {"role": "system", "content": COURSE_ANALYSIS_PROMPT},
                 {"role": "user", "content": self._build_user_prompt(context)},
             ],
             temperature=0.7,
+            log_task_type=self.log_task_type,
         )
 
         report_text = response.choices[0].message.content.strip()
@@ -79,12 +75,8 @@ class OpenAICourseAnalysisGenerator(BaseCourseAnalysisGenerator):
         return "\n\n".join(sections)
 
 
-async def get_mistral_course_analysis_generator(
-    api_key: str | None = None,
-) -> OpenAICourseAnalysisGenerator:
-    """Создать генератор анализа курсов, настроенный на Mistral."""
+async def get_course_analysis_generator() -> OpenAICourseAnalysisGenerator:
+    """Создать генератор анализа курсов"""
     return OpenAICourseAnalysisGenerator(
-        api_key=api_key or os.getenv("MISTRAL_API_KEY"),
-        model="mistral-medium-latest",
-        base_url="https://api.mistral.ai/v1",
+        client=get_monitored_openai_client(llm_settings),
     )
