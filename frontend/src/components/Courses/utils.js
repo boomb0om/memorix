@@ -50,6 +50,10 @@ export const createNewBlock = (type) => {
       return { type: 'code', title: '', code: '', language: 'python', explanation: '' };
     case 'note':
       return { type: 'note', note_type: 'info', content: '' };
+    case 'presentation':
+      return { type: 'presentation', url: '' };
+    case 'video':
+      return { type: 'video', video_type: 'youtube', url: '' };
     default:
       return null;
   }

@@ -39,7 +39,7 @@ class LessonBlockGenerateContext(BaseModel):
     # Тип блока, который нужно сгенерировать
     block_type: str | None = Field(
         default=None,
-        description="Тип блока для генерации (theory, code, note, single_choice, multiple_choice)",
+        description="Тип блока для генерации (theory, code, note, single_choice, multiple_choice). Блок presentation не может быть сгенерирован.",
     )
 
 

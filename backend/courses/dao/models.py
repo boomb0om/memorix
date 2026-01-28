@@ -77,7 +77,7 @@ class LessonBlock(Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False)
     position: Mapped[int] = mapped_column(Integer(), nullable=False)
-    type: Mapped[str] = mapped_column(String(50), nullable=False)  # theory, single_choice, multiple_choice, code, note
+    type: Mapped[str] = mapped_column(String(50), nullable=False)  # theory, single_choice, multiple_choice, code, note, presentation, video
     data: Mapped[dict] = mapped_column(postgresql.JSONB(), nullable=False)  # Специфичные данные блока
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
@@ -97,4 +97,19 @@ class UserQuestionAnswer(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     block_id: Mapped[UUID] = mapped_column(ForeignKey("lesson_blocks.id", ondelete="CASCADE"), nullable=False)
     answer: Mapped[dict] = mapped_column(postgresql.JSONB(), nullable=False)  # Сохраненный ответ (int или list[int])
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CourseAnalysisHistory(Base):
+    """Модель для хранения истории запусков анализа курса"""
+    __tablename__ = "course_analysis_history"
+    __table_args__ = (
+        Index("ix_course_analysis_history_course_id", "course_id"),
+        Index("ix_course_analysis_history_created_at", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    report: Mapped[str] = mapped_column(Text(), nullable=False)  # Текст результата анализа
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -23,6 +23,7 @@ from .courses import (
     CourseDetailResponse,
     GenerateLessonsRequest,
     CourseSearchResponse,
+    CourseAnalysisHistoryItem,
 )
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     "CourseDetailResponse",
     "GenerateLessonsRequest",
     "CourseSearchResponse",
+    "CourseAnalysisHistoryItem",
 ]

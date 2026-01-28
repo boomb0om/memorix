@@ -15,6 +15,7 @@ import LessonList from './components/LessonList';
 import LessonView from './components/LessonView';
 import LessonEditForm from './components/LessonEditForm';
 import GenerateLessonsModal from './components/GenerateLessonsModal';
+import CourseAnalysisModal from './components/CourseAnalysisModal';
 
 /**
  * Главный компонент Courses - объединяет все части модуля курсов
@@ -34,6 +35,9 @@ function Courses() {
     target_audience: '',
     topics: ''
   });
+
+  // Состояние для анализа курса
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
 
   // Хуки для управления данными
   const coursesHook = useCourses();
@@ -373,6 +377,16 @@ function Courses() {
     }
   };
 
+  // Обработчик открытия модального окна анализа курса
+  const handleOpenAnalysisModal = () => {
+    if (!coursesHook.selectedCourse) {
+      coursesHook.setError('Курс не выбран');
+      return;
+    }
+    setShowAnalysisModal(true);
+    coursesHook.setError(null);
+  };
+
   return (
     <>
       <Sidebar />
@@ -541,6 +555,7 @@ function Courses() {
               onGenerateLessons={handleOpenGenerateLessonsModal}
               isGeneratingLessons={isGeneratingLessons}
               onExportCourse={handleExportCourse}
+              onAnalyzeCourse={authorCheck() ? handleOpenAnalysisModal : null}
             />
           )}
         </div>
@@ -558,6 +573,15 @@ function Courses() {
         }}
         onGenerate={handleGenerateLessons}
         onFormDataChange={setGenerateFormData}
+      />
+
+      {/* Модальное окно анализа курса */}
+      <CourseAnalysisModal
+        show={showAnalysisModal}
+        courseId={coursesHook.selectedCourse?.id}
+        onClose={() => {
+          setShowAnalysisModal(false);
+        }}
       />
     </>
   );

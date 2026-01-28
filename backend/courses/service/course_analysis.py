@@ -1,9 +1,10 @@
 import logging
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from courses.dao import CourseDAO, LessonDAO, LessonBlockDAO
+from courses.dao import CourseDAO, LessonDAO, LessonBlockDAO, CourseAnalysisHistoryDAO
 from courses.service.access_control import ensure_course_access
 from courses.schema.blocks import db_block_to_schema
+from courses.schema.courses import CourseAnalysisHistoryItem
 from core.llm.course_analysis import (
     analyze_course,
     CourseAnalysisContext,
@@ -116,13 +117,27 @@ async def analyze_course_methodology(
     await ensure_course_access(db, course_id, user_id, require_author=True)
 
     logger.info(f"User {user_id} analyzing course {course_id}")
-
-    # Подготавливаем контекст
     context = await prepare_course_analysis_context(db, course_id)
-
     # Анализируем курс
     report = await analyze_course(context)
+    report_text = report.report
+
+    await CourseAnalysisHistoryDAO.create(db, course_id, user_id, report_text)
+    await db.commit()
 
     logger.info(f"Course {course_id} analysis completed")
 
-    return report.report
+    return report_text
+
+
+async def get_course_analysis_history(
+    db: AsyncSession,
+    course_id: int,
+    user_id: int,
+) -> list[CourseAnalysisHistoryItem]:
+    """Получить историю анализов курса."""
+    # Проверяем доступ
+    await ensure_course_access(db, course_id, user_id, require_author=True)
+
+    history = await CourseAnalysisHistoryDAO.get_by_course_id(db, course_id)
+    return [CourseAnalysisHistoryItem.model_validate(item) for item in history]

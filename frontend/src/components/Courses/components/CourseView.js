@@ -29,6 +29,8 @@ const CourseView = ({
   onGenerateLessons,
   isGeneratingLessons,
   onExportCourse,
+  onAnalyzeCourse,
+  isAnalyzingCourse,
 }) => {
   return (
     <div className="courses-view">
@@ -83,17 +85,31 @@ const CourseView = ({
             )}
           </p>
         </div>
-        {onExportCourse && (
-          <div>
-            <button 
-              onClick={onExportCourse}
-              className="courses-btn courses-btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              title="Экспортировать курс в формате Markdown"
-            >
-              <span>📥</span>
-              <span>Экспорт</span>
-            </button>
+        {(onExportCourse || onAnalyzeCourse) && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {onAnalyzeCourse && (
+              <AIButton
+                onClick={onAnalyzeCourse}
+                className="courses-btn courses-btn-secondary"
+                disabled={isAnalyzingCourse}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Проанализировать курс с точки зрения методологии обучения"
+              >
+                <span>{isAnalyzingCourse ? '⏳' : '🔍'}</span>
+                <span>{isAnalyzingCourse ? 'Анализ...' : 'Анализ курса'}</span>
+              </AIButton>
+            )}
+            {onExportCourse && (
+              <button 
+                onClick={onExportCourse}
+                className="courses-btn courses-btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Экспортировать курс в формате Markdown"
+              >
+                <span>📥</span>
+                <span>Экспорт</span>
+              </button>
+            )}
           </div>
         )}
       </div>

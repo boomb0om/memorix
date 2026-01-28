@@ -175,6 +175,12 @@ export const coursesApi = {
 
   // Экспортировать курс
   export: (id) => api.post(`/api/courses/${id}/export`, {}, { responseType: 'blob' }),
+
+  // Проанализировать курс
+  analyze: (id) => api.post(`/api/courses/${id}/analyze`),
+
+  // Получить историю анализов курса
+  getAnalysisHistory: (id) => api.get(`/api/courses/${id}/analysis-history`),
 };
 
 // API для работы с уроками

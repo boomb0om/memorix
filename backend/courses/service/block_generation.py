@@ -43,6 +43,20 @@ async def generate_lesson_block_content(
     if current_block.lesson_id != lesson_id:
         raise HTTPException(status_code=404, detail="Block not found in this lesson")
 
+    # Блок презентации не может быть сгенерирован или переформулирован
+    if current_block.type == "presentation":
+        raise HTTPException(
+            status_code=400,
+            detail="Блок презентации не может быть сгенерирован или переформулирован. Пожалуйста, создайте его вручную."
+        )
+
+    # Блок видео не может быть сгенерирован или переформулирован
+    if current_block.type == "video":
+        raise HTTPException(
+            status_code=400,
+            detail="Блок видео не может быть сгенерирован или переформулирован. Пожалуйста, создайте его вручную."
+        )
+
     # Получаем соседние блоки по позиции
     current_position = current_block.position
 

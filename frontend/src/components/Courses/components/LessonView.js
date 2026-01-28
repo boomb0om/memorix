@@ -7,6 +7,8 @@ import CodeBlock from './blocks/CodeBlock';
 import NoteBlock from './blocks/NoteBlock';
 import SingleChoiceBlock from './blocks/SingleChoiceBlock';
 import MultipleChoiceBlock from './blocks/MultipleChoiceBlock';
+import PresentationBlock from './blocks/PresentationBlock';
+import VideoBlock from './blocks/VideoBlock';
 import BlockEditor from './blocks/BlockEditor';
 import { createNewBlock } from '../utils';
 import AIButton from './AIButton';
@@ -188,6 +190,22 @@ const LessonView = ({
               onCheckAnswer={() => onCheckAnswer(block.block_id)}
             />
           )}
+          {block.type === 'presentation' && (
+            <PresentationBlock
+              block={block}
+              isAuthor={isAuthor}
+              onEdit={onEditBlock}
+              onDelete={onDeleteBlock}
+            />
+          )}
+          {block.type === 'video' && (
+            <VideoBlock
+              block={block}
+              isAuthor={isAuthor}
+              onEdit={onEditBlock}
+              onDelete={onDeleteBlock}
+            />
+          )}
         </div>
       </div>
     );
@@ -344,6 +362,12 @@ const LessonView = ({
               <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('multiple_choice')}>
                 + Вопрос (несколько ответов)
               </button>
+              <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('presentation')}>
+                + Презентация
+              </button>
+              <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('video')}>
+                + Видео
+              </button>
             </div>
           </div>
         )}
@@ -400,6 +424,12 @@ const LessonView = ({
                           <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('multiple_choice', index)}>
                             + Вопрос (несколько ответов)
                           </button>
+                          <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('presentation', index)}>
+                            + Презентация
+                          </button>
+                          <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('video', index)}>
+                            + Видео
+                          </button>
                         </div>
                       )}
                     </div>
@@ -453,6 +483,12 @@ const LessonView = ({
                       </button>
                       <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('multiple_choice', lesson.blocks.length)}>
                         + Вопрос (несколько ответов)
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('presentation', lesson.blocks.length)}>
+                        + Презентация
+                      </button>
+                      <button className="courses-btn courses-btn-secondary" onClick={() => handleAddBlockWithPosition('video', lesson.blocks.length)}>
+                        + Видео
                       </button>
                     </div>
                   )}

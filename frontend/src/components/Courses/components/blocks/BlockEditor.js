@@ -26,6 +26,46 @@ const BlockEditor = ({
     onUpdateData(field, value);
   };
 
+  // Функция для извлечения URL из iframe кода
+  const parseIframeCode = (iframeCode) => {
+    if (!iframeCode || !iframeCode.trim()) {
+      return null;
+    }
+
+    // Извлекаем src из iframe (поддерживаем одинарные и двойные кавычки)
+    const srcMatch = iframeCode.match(/src=["']([^"']+)["']/);
+    if (!srcMatch || !srcMatch[1]) {
+      return null;
+    }
+
+    // Просто возвращаем ссылку из src, без преобразований
+    return srcMatch[1];
+  };
+
+  // Обработчик изменения URL с поддержкой iframe
+  const handleVideoUrlChange = (value) => {
+    // Проверяем, является ли введенное значение iframe кодом
+    if (value.includes('<iframe') || value.includes('iframe>')) {
+      const extractedUrl = parseIframeCode(value);
+      if (extractedUrl) {
+        // Определяем тип видео по извлеченной ссылке
+        let videoType = blockData.video_type || 'youtube';
+        if (extractedUrl.includes('vk.com/video_ext.php') || extractedUrl.includes('vkvideo.ru') || extractedUrl.includes('vk.com/video')) {
+          videoType = 'vk';
+        } else if (extractedUrl.includes('youtube.com/embed') || extractedUrl.includes('youtube.com/watch') || extractedUrl.includes('youtu.be')) {
+          videoType = 'youtube';
+        }
+        
+        // Устанавливаем тип видео и URL
+        handleUpdateData('video_type', videoType);
+        handleUpdateData('url', extractedUrl);
+        return;
+      }
+    }
+    // Если это не iframe, просто обновляем URL
+    handleUpdateData('url', value);
+  };
+
   const handleOpenGenerateModal = (mode) => {
     setGenerateMode(mode);
     setUserRequest('');
@@ -294,7 +334,58 @@ const BlockEditor = ({
         </>
       )}
 
-      {canGenerate && (
+      {blockData.type === 'presentation' && (
+        <>
+          <div className="courses-form-group">
+            <label>Ссылка на Google Презентацию</label>
+            <input
+              type="url"
+              value={blockData.url || ''}
+              onChange={(e) => handleUpdateData('url', e.target.value)}
+              className="courses-input"
+              placeholder="https://docs.google.com/presentation/d/..."
+            />
+            <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+              Вставьте ссылку на Google Презентацию. Презентация будет отображаться встроенным образом.
+            </div>
+          </div>
+        </>
+      )}
+
+      {blockData.type === 'video' && (
+        <>
+          <div className="courses-form-group">
+            <label>Тип видео</label>
+            <select
+              value={blockData.video_type || 'youtube'}
+              onChange={(e) => handleUpdateData('video_type', e.target.value)}
+              className="courses-input"
+            >
+              <option value="youtube">YouTube</option>
+              <option value="vk">VK Video</option>
+            </select>
+          </div>
+          <div className="courses-form-group">
+            <label>Ссылка на видео или iframe код</label>
+            <textarea
+              value={blockData.url || ''}
+              onChange={(e) => handleVideoUrlChange(e.target.value)}
+              className="courses-textarea"
+              rows="3"
+              placeholder={blockData.video_type === 'youtube' 
+                ? 'https://www.youtube.com/watch?v=... или https://youtu.be/...\nИли вставьте iframe код: <iframe src="..."></iframe>'
+                : 'https://vk.com/video... или vkvideo.ru/video...\nИли вставьте iframe код: <iframe src="..."></iframe>'}
+            />
+            <div style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+              {blockData.video_type === 'youtube' 
+                ? 'Вставьте ссылку на YouTube видео или готовый iframe код. Поддерживаются форматы: youtube.com/watch?v=..., youtu.be/..., <iframe src="..."></iframe>'
+                : 'Вставьте ссылку на VK Video или готовый iframe код. Поддерживаются форматы: vk.com/video..., vkvideo.ru/video..., vk.com/...?z=video..., <iframe src="..."></iframe>'}
+            </div>
+          </div>
+        </>
+      )}
+
+      {canGenerate && blockData.type !== 'presentation' && blockData.type !== 'video' && (
         <div style={{ display: 'flex', gap: '8px', marginTop: '16px', marginBottom: '8px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
           <AIButton 
             onClick={() => handleOpenGenerateModal('generate')} 

@@ -89,6 +89,12 @@ const LessonEditForm = ({
               <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('multiple_choice')}>
                 + Вопрос (несколько ответов)
               </button>
+              <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('presentation')}>
+                + Презентация
+              </button>
+              <button className="courses-btn courses-btn-secondary" onClick={() => onAddBlock('video')}>
+                + Видео
+              </button>
             </div>
           </div>
 
@@ -107,6 +113,8 @@ const LessonEditForm = ({
                       {block.type === 'note' && '📌 Заметка'}
                       {block.type === 'single_choice' && '❓ Вопрос (один ответ)'}
                       {block.type === 'multiple_choice' && '❓ Вопрос (несколько ответов)'}
+                      {block.type === 'presentation' && '📊 Презентация'}
+                      {block.type === 'video' && `🎥 Видео (${block.video_type === 'youtube' ? 'YouTube' : 'VK'})`}
                     </div>
                     <div className="lesson-block-actions">
                       <button onClick={() => onMoveBlock(index, 'up')} disabled={index === 0} title="Вверх">
@@ -231,6 +239,38 @@ const LessonEditForm = ({
                             <div style={{ marginTop: '8px', fontStyle: 'italic' }}>
                               <ReactMarkdown>{block.explanation}</ReactMarkdown>
                             </div>
+                          )}
+                        </div>
+                      )}
+                      {block.type === 'presentation' && (
+                        <div>
+                          {block.url ? (
+                            <div>
+                              <strong>Презентация</strong>
+                              <div style={{ marginTop: '8px' }}>
+                                <a href={block.url} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline' }}>
+                                  {block.url}
+                                </a>
+                              </div>
+                            </div>
+                          ) : (
+                            <p style={{ color: '#999', fontStyle: 'italic' }}>Ссылка на презентацию не указана</p>
+                          )}
+                        </div>
+                      )}
+                      {block.type === 'video' && (
+                        <div>
+                          {block.url ? (
+                            <div>
+                              <strong>Видео ({block.video_type === 'youtube' ? 'YouTube' : 'VK Video'})</strong>
+                              <div style={{ marginTop: '8px' }}>
+                                <a href={block.url} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline' }}>
+                                  {block.url}
+                                </a>
+                              </div>
+                            </div>
+                          ) : (
+                            <p style={{ color: '#999', fontStyle: 'italic' }}>Ссылка на видео не указана</p>
                           )}
                         </div>
                       )}

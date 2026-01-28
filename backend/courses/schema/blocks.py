@@ -68,6 +68,23 @@ class NoteBlock(BaseBlock):
     content: str = Field(description="Текст заметки")
 
 
+# Блок с презентацией
+class PresentationBlock(BaseBlock):
+    """Блок с презентацией (Google Slides)"""
+
+    type: Literal["presentation"] = "presentation"
+    url: str = Field(description="Ссылка на Google Презентацию")
+
+
+# Блок с видео
+class VideoBlock(BaseBlock):
+    """Блок с видео (YouTube или VK Video)"""
+
+    type: Literal["video"] = "video"
+    video_type: Literal["youtube", "vk"] = Field(description="Тип видео: youtube или vk")
+    url: str = Field(description="Ссылка на видео")
+
+
 # Union тип для всех блоков
 LessonBlock = Union[
     TheoryBlock,
@@ -75,6 +92,8 @@ LessonBlock = Union[
     MultipleChoiceQuestionBlock,
     CodeBlock,
     NoteBlock,
+    PresentationBlock,
+    VideoBlock,
 ]
 
 
@@ -192,6 +211,14 @@ def build_block_context(block_dict: dict | None) -> dict | None:
             context["options"] = block_dict["options"]
         if "explanation" in block_dict:
             context["explanation"] = block_dict["explanation"]
+
+    elif block_type == "presentation":
+        # Блок презентации не включается в контекст генерации
+        return None
+
+    elif block_type == "video":
+        # Блок видео не включается в контекст генерации
+        return None
 
     # Если контекст содержит только тип, возвращаем None
     if len(context) == 1:

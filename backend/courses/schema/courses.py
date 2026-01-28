@@ -51,3 +51,15 @@ class GenerateLessonsRequest(BaseModel):
     target_knowledge: str | None = Field(default=None, description="Конечные знания")
     target_audience: str | None = Field(default=None, description="Целевая аудитория")
     topics: list[str] | None = Field(default=None, description="Темы, которые нужно включить")
+
+
+class CourseAnalysisHistoryItem(BaseModel):
+    """Схема для элемента истории анализа курса"""
+    id: int
+    course_id: int
+    user_id: int
+    report: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

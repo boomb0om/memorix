@@ -17,6 +17,7 @@ from courses.schema import (
     CourseWithLessons,
     GenerateLessonsRequest,
     LessonListItem,
+    CourseAnalysisHistoryItem,
 )
 from courses.service import course_export as export_service
 from users.service.users import check_user_plan_for_llm
@@ -168,6 +169,17 @@ async def analyze_course_methodology(
     )
 
     return {"report": report}
+
+
+@router.get("/{course_id}/analysis-history", response_model=list[CourseAnalysisHistoryItem])
+async def get_course_analysis_history(
+    course_id: int, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Получить историю запусков анализа курса"""
+    user_id = request.state.user_id
+    return await course_analysis_service.get_course_analysis_history(
+        db, course_id, user_id
+    )
 
 
 @router.post("/{course_id}/export")
