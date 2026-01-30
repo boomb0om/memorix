@@ -36,7 +36,7 @@ app.memorix.space {
         Referrer-Policy "strict-origin-when-cross-origin"
         
         # Content Security Policy (adjust as needed for your frontend)
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co;"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self' https://docs.google.com https://www.youtube.com https://youtube.com https://vk.com https://vkvideo.ru;"
         
         # Remove Server header for security
         -Server

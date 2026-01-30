@@ -21,7 +21,8 @@ const PresentationBlock = ({ block, isAuthor, onEdit, onDelete }) => {
     const match = url.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
     if (match && match[1]) {
       const presentationId = match[1];
-      return `https://docs.google.com/presentation/d/${presentationId}/embed`;
+      // Добавляем параметры для правильной работы embed
+      return `https://docs.google.com/presentation/d/${presentationId}/embed?start=false&loop=false&delayms=3000`;
     }
     
     // Если не удалось распарсить, возвращаем null
